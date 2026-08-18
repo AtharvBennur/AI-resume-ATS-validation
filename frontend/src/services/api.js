@@ -22,13 +22,36 @@ const mockATSReports = [
 export const loginUser = async (email, password) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      if (email === 'user@example.com' && password === 'password') {
-        const user = mockUsers[email];
-        resolve({ success: true, user, token: 'mock-token-123' });
-      } else {
-        reject({ success: false, message: 'Invalid credentials' });
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      const trimmedPassword = String(password || '').trim();
+
+      if (!normalizedEmail || !trimmedPassword) {
+        reject({ success: false, message: 'Email and password are required' });
+        return;
       }
-    }, 500);
+
+      const demoUser = mockUsers[normalizedEmail] || {
+        id: Date.now(),
+        name: normalizedEmail.split('@')[0].replace(/[._-]/g, ' '),
+        email: normalizedEmail,
+        phone: '',
+        location: '',
+        linkedin: '',
+        github: '',
+        portfolio: ''
+      };
+
+      // Temporary frontend-only demo mode so the app can be explored without a backend.
+      if (normalizedEmail.includes('@') && trimmedPassword.length > 0) {
+        if (!mockUsers[normalizedEmail]) {
+          mockUsers[normalizedEmail] = demoUser;
+        }
+        resolve({ success: true, user: demoUser, token: 'demo-token-123' });
+        return;
+      }
+
+      reject({ success: false, message: 'Invalid credentials' });
+    }, 400);
   });
 };
 

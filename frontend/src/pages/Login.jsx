@@ -59,9 +59,10 @@ function Login() {
           {generalError && <div className="error-message">{generalError}</div>}
 
           <div className="demo-credentials">
-            <span className="demo-label">Demo Login</span>
+            <span className="demo-label">Temporary Demo Mode</span>
             <strong>Email:</strong> user@example.com
             <strong>Password:</strong> password
+            <small>No backend required — this lets you explore the inside of the app right now.</small>
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form">
