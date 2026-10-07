@@ -46,8 +46,14 @@ function Navbar({ isAuthenticated, onLogout }) {
               <Link to="/ats" className={`nav-link ${location.pathname === '/ats' ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 ATS Validation
               </Link>
+              <Link to="/resumes" className={`nav-link ${location.pathname === '/resumes' ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
+                My Resumes
+              </Link>
               <Link to="/profile" className={`nav-link ${location.pathname === '/profile' ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                 Profile
+              </Link>
+              <Link to="/settings" className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
+                Settings
               </Link>
             </>
           )}

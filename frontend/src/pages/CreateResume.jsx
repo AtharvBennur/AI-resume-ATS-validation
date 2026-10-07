@@ -4,28 +4,45 @@ import { useParams } from 'react-router-dom';
 import '../styles/pages.css';
 import '../styles/ResumeBuilder.css';
 
+const emptyResumeData = {
+  personalInfo: {
+    fullName: '',
+    professionalTitle: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedin: '',
+    github: '',
+    portfolio: ''
+  },
+  professionalSummary: '',
+  education: [],
+  skills: [],
+  experience: [],
+  projects: [],
+  certifications: [],
+  achievements: []
+};
+
+const normalizeResumeData = (data = {}) => ({
+  ...emptyResumeData,
+  ...data,
+  personalInfo: {
+    ...emptyResumeData.personalInfo,
+    ...(data.personalInfo || {})
+  },
+  education: Array.isArray(data.education) ? data.education : [],
+  skills: Array.isArray(data.skills) ? data.skills : [],
+  experience: Array.isArray(data.experience) ? data.experience : [],
+  projects: Array.isArray(data.projects) ? data.projects : [],
+  certifications: Array.isArray(data.certifications) ? data.certifications : [],
+  achievements: Array.isArray(data.achievements) ? data.achievements : []
+});
+
 function CreateResume() {
   const { id } = useParams();
   const [saveStatus, setSaveStatus] = useState('');
-  const [formData, setFormData] = useState({
-    personalInfo: {
-      fullName: '',
-      professionalTitle: '',
-      email: '',
-      phone: '',
-      location: '',
-      linkedin: '',
-      github: '',
-      portfolio: ''
-    },
-    professionalSummary: '',
-    education: [],
-    skills: [],
-    experience: [],
-    projects: [],
-    certifications: [],
-    achievements: []
-  });
+  const [formData, setFormData] = useState(emptyResumeData);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,14 +51,20 @@ function CreateResume() {
       loadResume();
     } else {
       const saved = localStorage.getItem('currentResume');
-      if (saved) setFormData(JSON.parse(saved));
+      if (saved) {
+        try {
+          setFormData(normalizeResumeData(JSON.parse(saved).data || JSON.parse(saved)));
+        } catch {
+          setFormData(emptyResumeData);
+        }
+      }
     }
   }, [id]);
 
   const loadResume = async () => {
     const response = await getResume(id);
     if (response.success && response.resume.data) {
-      setFormData(response.resume.data);
+      setFormData(normalizeResumeData(response.resume.data));
     }
   };
 
@@ -169,14 +192,8 @@ function CreateResume() {
   const handleReset = () => {
     if (window.confirm('Are you sure you want to reset all changes?')) {
       setFormData({
-        personalInfo: { fullName: '', professionalTitle: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
-        professionalSummary: '',
-        education: [],
-        skills: [],
-        experience: [],
-        projects: [],
-        certifications: [],
-        achievements: []
+        ...emptyResumeData,
+        personalInfo: { ...emptyResumeData.personalInfo }
       });
       setSaveStatus('');
     }

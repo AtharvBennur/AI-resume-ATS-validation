@@ -1,15 +1,52 @@
-// Mock API Service
-// This will be connected to the real backend later
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const DEMO_CREDENTIALS = {
+  email: 'demo@airesume.local',
+  password: 'Demo@1234'
+};
+
+const request = async (path, options = {}) => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.message || payload.error || 'Request failed');
+  }
+
+  return payload;
+};
 
 // Mock data
 const mockUsers = {
+  [DEMO_CREDENTIALS.email]: { id: 'demo-user', name: 'Demo User', email: DEMO_CREDENTIALS.email, phone: '', location: '', linkedin: '', github: '', portfolio: '' },
   'user@example.com': { id: 1, name: 'Atharv Kumar', email: 'user@example.com', phone: '+91 9876543210', location: 'Bangalore, India', linkedin: 'linkedin.com/in/atharv', github: 'github.com/atharv', portfolio: 'atharv.dev' }
 };
 
+const demoResumeData = {
+  personalInfo: {
+    fullName: 'Atharv Bennur',
+    professionalTitle: 'Software Developer',
+    email: 'demo@airesume.local',
+    phone: '+91 9876543210',
+    location: 'Bengaluru, India',
+    linkedin: 'linkedin.com/in/atharv',
+    github: 'github.com/atharv'
+  },
+  professionalSummary: 'Software developer focused on building reliable, user-friendly applications with modern web technologies.',
+  education: [{ institution: 'University of Technology', degree: 'B.Tech', field: 'Computer Science', startYear: '2020', endYear: '2024', cgpa: '8.6' }],
+  skills: ['JavaScript', 'React', 'Node.js', 'MongoDB'],
+  experience: [{ company: 'Tech Company', role: 'Software Developer', location: 'Bengaluru', startDate: '2024', endDate: 'Present', description: 'Built and improved full-stack web applications for career development.' }],
+  projects: [{ name: 'AI Resume Maker', description: 'Created a resume builder with ATS validation and tailored resume enhancement.', technologies: 'React, Node.js, MongoDB' }],
+  certifications: [],
+  achievements: []
+};
+
 const mockResumes = [
-  { id: 1, name: 'Cloud Engineer Resume', lastUpdated: '2026-08-15', atsScore: 86, data: {} },
-  { id: 2, name: 'Data Engineer Resume', lastUpdated: '2026-08-10', atsScore: 78, data: {} },
-  { id: 3, name: 'Software Developer Resume', lastUpdated: '2026-08-05', atsScore: 92, data: {} }
+  { id: 1, name: 'Cloud Engineer Resume', lastUpdated: '2026-08-15', atsScore: 86, data: { ...demoResumeData, personalInfo: { ...demoResumeData.personalInfo, professionalTitle: 'Cloud Engineer' } } },
+  { id: 2, name: 'Data Engineer Resume', lastUpdated: '2026-08-10', atsScore: 78, data: { ...demoResumeData, personalInfo: { ...demoResumeData.personalInfo, professionalTitle: 'Data Engineer' } } },
+  { id: 3, name: 'Software Developer Resume', lastUpdated: '2026-08-05', atsScore: 92, data: demoResumeData }
 ];
 
 const mockATSReports = [
@@ -20,47 +57,20 @@ const mockATSReports = [
 
 // Auth APIs
 export const loginUser = async (email, password) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const normalizedEmail = String(email || '').trim().toLowerCase();
-      const trimmedPassword = String(password || '').trim();
+  if (email.trim().toLowerCase() === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
+    return { success: true, token: 'demo-token-local', user: mockUsers[DEMO_CREDENTIALS.email] };
+  }
 
-      if (!normalizedEmail || !trimmedPassword) {
-        reject({ success: false, message: 'Email and password are required' });
-        return;
-      }
-
-      const demoUser = mockUsers[normalizedEmail] || {
-        id: Date.now(),
-        name: normalizedEmail.split('@')[0].replace(/[._-]/g, ' '),
-        email: normalizedEmail,
-        phone: '',
-        location: '',
-        linkedin: '',
-        github: '',
-        portfolio: ''
-      };
-
-      // Temporary frontend-only demo mode so the app can be explored without a backend.
-      if (normalizedEmail.includes('@') && trimmedPassword.length > 0) {
-        if (!mockUsers[normalizedEmail]) {
-          mockUsers[normalizedEmail] = demoUser;
-        }
-        resolve({ success: true, user: demoUser, token: 'demo-token-123' });
-        return;
-      }
-
-      reject({ success: false, message: 'Invalid credentials' });
-    }, 400);
+  return request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password })
   });
 };
 
 export const registerUser = async (name, email, password) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      mockUsers[email] = { id: 2, name, email, phone: '', location: '', linkedin: '', github: '', portfolio: '' };
-      resolve({ success: true, message: 'Registration successful' });
-    }, 500);
+  return request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, email, password })
   });
 };
 

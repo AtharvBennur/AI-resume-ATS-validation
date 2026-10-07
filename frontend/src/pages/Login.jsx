@@ -1,49 +1,34 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { loginUser } from '../services/api';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { DEMO_CREDENTIALS, loginUser } from '../services/api';
 import '../styles/pages.css';
 
-function Login() {
+function Login({ onLogin }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [generalError, setGeneralError] = useState('');
+  const [error, setError] = useState('');
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.email) newErrors.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format';
-    if (!formData.password) newErrors.password = 'Password is required';
-    return newErrors;
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  const useDemoCredentials = () => {
+    setFormData(DEMO_CREDENTIALS);
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const newErrors = validateForm();
-    
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
     setIsLoading(true);
-    setGeneralError('');
+    setError('');
 
     try {
       const response = await loginUser(formData.email, formData.password);
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('userEmail', response.user.email);
       localStorage.setItem('userName', response.user.name);
-      navigate('/dashboard');
-    } catch (error) {
-      setGeneralError(error.message || 'Invalid email or password');
+      onLogin();
+      navigate(location.state?.from || '/dashboard', { replace: true });
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to log in. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -56,44 +41,43 @@ function Login() {
           <h2>Login to Your Account</h2>
           <p className="auth-subtitle">Welcome back! Please login with your details.</p>
 
-          {generalError && <div className="error-message">{generalError}</div>}
+          {error && <div className="error-message" role="alert">{error}</div>}
 
           <div className="demo-credentials">
-            <span className="demo-label">Temporary Demo Mode</span>
-            <strong>Email:</strong> user@example.com
-            <strong>Password:</strong> password
-            <small>No backend required — this lets you explore the inside of the app right now.</small>
+            <span className="demo-label">Demo account</span>
+            <small>Email: {DEMO_CREDENTIALS.email}</small>
+            <small>Password: {DEMO_CREDENTIALS.password}</small>
+            <button type="button" className="link demo-fill-button" onClick={useDemoCredentials}>
+              Use demo credentials
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
-              <label htmlFor="email">Email Address</label>
+              <label htmlFor="login-email">Email Address</label>
               <input
-                id="email"
+                id="login-email"
                 type="email"
-                name="email"
                 value={formData.email}
-                onChange={handleChange}
+                onChange={(event) => setFormData({ ...formData, email: event.target.value })}
                 placeholder="you@example.com"
-                className={errors.email ? 'input-error' : ''}
+                autoComplete="email"
+                required
               />
-              {errors.email && <span className="error-text">{errors.email}</span>}
             </div>
-
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="login-password">Password</label>
               <input
-                id="password"
+                id="login-password"
                 type="password"
-                name="password"
                 value={formData.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                className={errors.password ? 'input-error' : ''}
+                onChange={(event) => setFormData({ ...formData, password: event.target.value })}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                minLength="8"
+                required
               />
-              {errors.password && <span className="error-text">{errors.password}</span>}
             </div>
-
             <button type="submit" className="btn btn-primary btn-block" disabled={isLoading}>
               {isLoading ? 'Logging in...' : 'Login'}
             </button>

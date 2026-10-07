@@ -32,7 +32,7 @@ function Home() {
         <div className="hero-visual">
           <div className="resume-mockup">
             <div className="resume-header">
-              <div className="resume-name">Atharv Kumar</div>
+              <div className="resume-name">Atharv </div>
               <div className="resume-title">Cloud Engineer</div>
               <div className="resume-contact">📧 atharv@example.com | 📱 +91 9876543210</div>
             </div>
