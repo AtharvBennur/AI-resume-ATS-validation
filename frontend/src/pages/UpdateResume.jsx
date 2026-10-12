@@ -1,14 +1,31 @@
-import { useState } from 'react';
-import { extractResumeData } from '../services/api';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { extractResumeData, getResumes } from '../services/api';
 import '../styles/pages.css';
 
 function UpdateResume() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [extractedData, setExtractedData] = useState(null);
   const [extractedSections, setExtractedSections] = useState(null);
+  const [resumes, setResumes] = useState([]);
+  const [targetResumeId, setTargetResumeId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    let isCurrent = true;
+    getResumes()
+      .then((response) => {
+        if (isCurrent && response.success) setResumes(response.resumes);
+      })
+      .catch(() => {
+        if (isCurrent) setResumes([]);
+      });
+    return () => { isCurrent = false; };
+  }, []);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -29,18 +46,25 @@ function UpdateResume() {
   };
 
   const handleFileSelect = (file) => {
-    if (file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    if (!file) return;
+    const supportedType = file.type === 'application/pdf'
+      || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      || /\.(pdf|docx)$/i.test(file.name);
+    if (file.size > 5 * 1024 * 1024) {
+      setActionError('Resume files must be 5 MB or smaller.');
+    } else if (supportedType) {
+      setActionError('');
       setUploadedFile(file);
       setStep(2);
     } else {
-      alert('Please select a PDF or DOCX file');
+      setActionError('Please select a PDF or DOCX file.');
     }
   };
 
   const handleAnalyze = async () => {
     if (!uploadedFile) return;
-    
     setIsLoading(true);
+    setActionError('');
     try {
       const response = await extractResumeData(uploadedFile);
       if (response.success) {
@@ -48,6 +72,8 @@ function UpdateResume() {
         setExtractedSections(response.extractedSections);
         setStep(3);
       }
+    } catch (error) {
+      setActionError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -55,17 +81,10 @@ function UpdateResume() {
 
   const handleConvert = () => {
     if (extractedData) {
-      localStorage.setItem('currentResume', JSON.stringify({
-        personalInfo: extractedData.personalInfo,
-        professionalSummary: extractedData.professionalSummary,
-        education: extractedData.education,
-        skills: extractedData.skills,
-        experience: extractedData.experience,
-        projects: extractedData.projects,
-        certifications: extractedData.certifications,
-        achievements: extractedData.achievements
-      }));
-      window.location.href = '/resume/create';
+      localStorage.removeItem('currentResume');
+      navigate(targetResumeId ? `/resume/${targetResumeId}/edit` : '/resume/create', {
+        state: { importedResume: extractedData, targetResumeId }
+      });
     }
   };
 
@@ -74,6 +93,7 @@ function UpdateResume() {
       <div className="container">
         <h1>Update Resume</h1>
         <p className="page-description">Convert your existing resume to our format</p>
+        {actionError && <p className="builder-error" role="alert">{actionError}</p>}
 
         {step === 1 && (
           <div className="update-step">
@@ -109,7 +129,7 @@ function UpdateResume() {
                 <div className="file-name">📄 {uploadedFile.name}</div>
                 <div className="file-size">{(uploadedFile.size / 1024).toFixed(2)} KB</div>
               </div>
-              <button onClick={() => setUploadedFile(null)} className="btn-remove">Remove</button>
+              <button onClick={() => { setUploadedFile(null); setStep(1); }} className="btn-remove">Remove</button>
             </div>
             <button onClick={handleAnalyze} className="btn btn-primary btn-large" disabled={isLoading}>
               {isLoading ? 'Extracting...' : 'Analyze Resume'}
@@ -131,8 +151,15 @@ function UpdateResume() {
                 </div>
               ))}
             </div>
+            <div className="form-group import-target">
+              <label htmlFor="import-target">Import into</label>
+              <select id="import-target" value={targetResumeId} onChange={(event) => setTargetResumeId(event.target.value)}>
+                <option value="">Create a new resume</option>
+                {resumes.map((resume) => <option key={resume.id} value={resume.id}>Replace {resume.name}</option>)}
+              </select>
+            </div>
             <button onClick={handleConvert} className="btn btn-primary btn-large">
-              Convert to Resume Format
+              {targetResumeId ? 'Edit selected resume with imported data' : 'Create resume from imported data'}
             </button>
           </div>
         )}

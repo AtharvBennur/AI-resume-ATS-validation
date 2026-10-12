@@ -5,8 +5,14 @@ export const DEMO_CREDENTIALS = {
 };
 
 const request = async (path, options = {}) => {
+  const token = localStorage.getItem('authToken');
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers
+    },
     ...options
   });
   const payload = await response.json().catch(() => ({}));
@@ -17,6 +23,18 @@ const request = async (path, options = {}) => {
 
   return payload;
 };
+
+const requireRegisteredAccount = () => {
+  const token = localStorage.getItem('authToken');
+  if (!token || token === 'demo-token-local') {
+    throw new Error('Sign in with a registered account to upload resumes or save ATS results.');
+  }
+};
+
+export const rewriteResumeSection = (text, section) => request('/ai/rewrite', {
+  method: 'POST',
+  body: JSON.stringify({ text, section })
+});
 
 // Mock data
 const mockUsers = {
@@ -44,15 +62,9 @@ const demoResumeData = {
 };
 
 const mockResumes = [
-  { id: 1, name: 'Cloud Engineer Resume', lastUpdated: '2026-08-15', atsScore: 86, data: { ...demoResumeData, personalInfo: { ...demoResumeData.personalInfo, professionalTitle: 'Cloud Engineer' } } },
-  { id: 2, name: 'Data Engineer Resume', lastUpdated: '2026-08-10', atsScore: 78, data: { ...demoResumeData, personalInfo: { ...demoResumeData.personalInfo, professionalTitle: 'Data Engineer' } } },
-  { id: 3, name: 'Software Developer Resume', lastUpdated: '2026-08-05', atsScore: 92, data: demoResumeData }
-];
-
-const mockATSReports = [
-  { id: 1, resumeName: 'Cloud Engineer Resume', date: '2026-08-15', score: 86, status: 'Good' },
-  { id: 2, resumeName: 'Data Engineer Resume', date: '2026-08-10', score: 78, status: 'Good' },
-  { id: 3, resumeName: 'Software Developer Resume', date: '2026-08-05', score: 92, status: 'Excellent' }
+  { id: 1, name: 'Cloud Engineer Resume', lastUpdated: '2026-08-15', atsScore: 0, data: { ...demoResumeData, personalInfo: { ...demoResumeData.personalInfo, professionalTitle: 'Cloud Engineer' } } },
+  { id: 2, name: 'Data Engineer Resume', lastUpdated: '2026-08-10', atsScore: 0, data: { ...demoResumeData, personalInfo: { ...demoResumeData.personalInfo, professionalTitle: 'Data Engineer' } } },
+  { id: 3, name: 'Software Developer Resume', lastUpdated: '2026-08-05', atsScore: 0, data: demoResumeData }
 ];
 
 // Auth APIs
@@ -102,6 +114,11 @@ export const updateProfile = async (profileData) => {
 
 // Resume APIs
 export const createResume = async (resumeData) => {
+  const token = localStorage.getItem('authToken');
+  if (token && token !== 'demo-token-local') {
+    return request('/resumes', { method: 'POST', body: JSON.stringify({ data: resumeData }) });
+  }
+
   return new Promise((resolve) => {
     setTimeout(() => {
       const newResume = {
@@ -119,6 +136,9 @@ export const createResume = async (resumeData) => {
 };
 
 export const getResumes = async () => {
+  const token = localStorage.getItem('authToken');
+  if (token && token !== 'demo-token-local') return request('/resumes');
+
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve({ success: true, resumes: mockResumes });
@@ -127,6 +147,9 @@ export const getResumes = async () => {
 };
 
 export const getResume = async (id) => {
+  const token = localStorage.getItem('authToken');
+  if (token && token !== 'demo-token-local') return request(`/resumes/${id}`);
+
   return new Promise((resolve) => {
     setTimeout(() => {
       const resume = mockResumes.find(r => r.id === parseInt(id));
@@ -136,6 +159,11 @@ export const getResume = async (id) => {
 };
 
 export const updateResume = async (id, resumeData) => {
+  const token = localStorage.getItem('authToken');
+  if (token && token !== 'demo-token-local') {
+    return request(`/resumes/${id}`, { method: 'PUT', body: JSON.stringify({ data: resumeData }) });
+  }
+
   return new Promise((resolve) => {
     setTimeout(() => {
       const index = mockResumes.findIndex(r => r.id === parseInt(id));
@@ -148,6 +176,9 @@ export const updateResume = async (id, resumeData) => {
 };
 
 export const deleteResume = async (id) => {
+  const token = localStorage.getItem('authToken');
+  if (token && token !== 'demo-token-local') return request(`/resumes/${id}`, { method: 'DELETE' });
+
   return new Promise((resolve) => {
     setTimeout(() => {
       const index = mockResumes.findIndex(r => r.id === parseInt(id));
@@ -160,158 +191,26 @@ export const deleteResume = async (id) => {
 };
 
 // Enhancement APIs
-export const analyzeJobPosting = async (jobUrl) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        analysis: {
-          jobTitle: 'Cloud Engineer',
-          company: 'Amazon',
-          requiredSkills: ['AWS', 'Python', 'Linux', 'Docker', 'Terraform'],
-          technologies: ['AWS', 'Kubernetes', 'Docker', 'Python', 'Terraform'],
-          keywords: ['cloud infrastructure', 'deployment', 'scalability', 'monitoring'],
-          responsibilities: ['Design and implement cloud infrastructure', 'Manage AWS services', 'Optimize costs']
-        }
-      });
-    }, 1000);
-  });
-};
-
-export const enhanceResume = async (resumeId, jobAnalysis) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        enhancement: {
-          matchScore: 86,
-          matchedSkills: ['AWS', 'Python', 'Linux', 'Docker'],
-          missingKeywords: ['Terraform', 'Kubernetes'],
-          suggestions: [
-            { type: 'Professional Summary', priority: 'high', suggestion: 'Add cloud infrastructure keywords' },
-            { type: 'Project descriptions', priority: 'medium', suggestion: 'Highlight cloud deployment projects' },
-            { type: 'Technical Skills', priority: 'medium', suggestion: 'Add Terraform and Kubernetes' }
-          ]
-        }
-      });
-    }, 800);
-  });
-};
+export const matchResumeToJob = (resumeId, jobDescription) => request('/ai/job-match', {
+  method: 'POST',
+  body: JSON.stringify({ resumeId, jobDescription })
+});
 
 // ATS APIs
-export const validateATS = async (resumeFile) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        report: {
-          score: 86,
-          status: 'Good',
-          breakdown: {
-            keywordMatch: 88,
-            formatting: 90,
-            structure: 85,
-            readability: 87,
-            jobMatch: 82
-          },
-          good: [
-            'Clear section headings',
-            'Contact information found',
-            'Skills section detected'
-          ],
-          warnings: [
-            'Add more job-specific keywords',
-            'Improve project descriptions',
-            'Consider adding metrics to achievements'
-          ],
-          critical: []
-        }
-      });
-    }, 2000);
-  });
+export const validateATS = (resumeFile, jobDescription = '', resumeId = '') => {
+  requireRegisteredAccount();
+  const formData = new FormData();
+  formData.append('resume', resumeFile);
+  if (jobDescription.trim()) formData.append('jobDescription', jobDescription.trim());
+  if (resumeId) formData.append('resumeId', resumeId);
+  return request('/ai/ats/validate', { method: 'POST', body: formData });
 };
 
-export const getATSReport = async (id) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const report = mockATSReports.find(r => r.id === parseInt(id));
-      resolve({
-        success: true,
-        report: report || {
-          id: 1,
-          resumeName: 'Cloud Engineer Resume',
-          date: '2026-08-18',
-          score: 86,
-          status: 'Good',
-          breakdown: {
-            keywordMatch: 88,
-            formatting: 90,
-            structure: 85,
-            readability: 87,
-            jobMatch: 82
-          },
-          good: ['Clear section headings', 'Contact information found', 'Skills section detected'],
-          warnings: ['Add more job-specific keywords', 'Improve project descriptions'],
-          critical: []
-        }
-      });
-    }, 300);
-  });
-};
+export const getATSReport = (id) => request(`/ai/ats/reports/${id}`);
 
-export const generateATSReport = async (resumeId) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newReport = {
-        id: mockATSReports.length + 1,
-        resumeName: 'Resume ' + mockATSReports.length,
-        date: new Date().toISOString().split('T')[0],
-        score: Math.floor(Math.random() * 30) + 70,
-        status: 'Good'
-      };
-      mockATSReports.push(newReport);
-      resolve({ success: true, report: newReport });
-    }, 2000);
-  });
-};
-
-export const extractResumeData = async (file) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        extractedData: {
-          personalInfo: {
-            fullName: 'John Doe',
-            email: 'john@example.com',
-            phone: '+1 234 567 8900',
-            location: 'San Francisco, USA',
-            linkedin: 'linkedin.com/in/johndoe',
-            github: 'github.com/johndoe',
-            portfolio: 'johndoe.dev'
-          },
-          professionalSummary: 'Experienced software developer with 5+ years in cloud technologies...',
-          education: [
-            { institution: 'MIT', degree: 'BS', field: 'Computer Science', startYear: 2015, endYear: 2019, cgpa: '3.8' }
-          ],
-          skills: ['JavaScript', 'Python', 'AWS', 'Docker', 'Kubernetes'],
-          experience: [
-            { company: 'Tech Corp', role: 'Senior Developer', location: 'San Francisco', startDate: '2021-01', endDate: 'Present', description: 'Led cloud migration...' }
-          ],
-          projects: [],
-          certifications: [],
-          achievements: []
-        },
-        extractedSections: {
-          personalInfo: true,
-          education: true,
-          skills: true,
-          experience: true,
-          projects: false,
-          certifications: false,
-          achievements: false
-        }
-      });
-    }, 1500);
-  });
+export const extractResumeData = (file) => {
+  requireRegisteredAccount();
+  const formData = new FormData();
+  formData.append('resume', file);
+  return request('/ai/resume/import', { method: 'POST', body: formData });
 };

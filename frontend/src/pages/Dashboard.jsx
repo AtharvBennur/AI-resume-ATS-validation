@@ -3,120 +3,176 @@ import { Link } from 'react-router-dom';
 import { getResumes } from '../services/api';
 import '../styles/pages.css';
 
+const completionFields = (data = {}) => [
+  Boolean(data.personalInfo?.fullName),
+  Boolean(data.personalInfo?.professionalTitle),
+  Boolean(data.personalInfo?.email),
+  Boolean(data.professionalSummary?.trim()),
+  Boolean(data.skills?.length),
+  Boolean(data.experience?.length),
+  Boolean(data.education?.length)
+];
+
+const formatDate = (value) => {
+  if (!value) return 'Not updated yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+};
+
 function Dashboard() {
   const [resumes, setResumes] = useState([]);
-  const [stats, setStats] = useState({
-    totalResumes: 0,
-    atsChecks: 0,
-    avgATSScore: 0,
-    jobMatches: 0
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    let isCurrent = true;
     const fetchResumes = async () => {
-      const response = await getResumes();
-      if (response.success) {
-        setResumes(response.resumes);
-        const avgScore = response.resumes.length > 0
-          ? Math.round(response.resumes.reduce((sum, r) => sum + r.atsScore, 0) / response.resumes.length)
-          : 0;
-        setStats({
-          totalResumes: response.resumes.length,
-          atsChecks: response.resumes.length,
-          avgATSScore: avgScore,
-          jobMatches: 3
-        });
+      try {
+        const response = await getResumes();
+        if (isCurrent && response.success) setResumes(response.resumes);
+      } catch (error) {
+        if (isCurrent) setLoadError(error.message);
+      } finally {
+        if (isCurrent) setIsLoading(false);
       }
     };
     fetchResumes();
+    return () => { isCurrent = false; };
   }, []);
+
+  const scoredResumes = resumes.filter((resume) => Number(resume.atsScore) > 0);
+  const averageScore = scoredResumes.length
+    ? Math.round(scoredResumes.reduce((sum, resume) => sum + Number(resume.atsScore), 0) / scoredResumes.length)
+    : null;
+  const latestResume = resumes[0];
+  const completion = latestResume
+    ? Math.round(completionFields(latestResume.data).filter(Boolean).length / completionFields(latestResume.data).length * 100)
+    : 0;
+  const firstName = localStorage.getItem('userName')?.trim().split(/\s+/)[0] || 'there';
 
   return (
     <div className="dashboard-page">
-      <div className="container">
-        <div className="dashboard-header">
-          <h1>Welcome back, {localStorage.getItem('userName')}</h1>
-          <p>Manage your resumes and improve your job applications.</p>
-        </div>
+      <div className="dashboard-container">
+        <header className="dashboard-hero">
+          <div className="dashboard-welcome">
+            <span className="dashboard-eyebrow">YOUR CAREER WORKSPACE</span>
+            <h1>Good to see you, {firstName}.</h1>
+            <p>Keep your experience sharp, your applications focused, and your next move ready.</p>
+            <div className="dashboard-hero-actions">
+              <Link to="/resume/create" className="dashboard-primary-link">Create a resume <span aria-hidden="true">↗</span></Link>
+              <Link to="/ats" className="dashboard-secondary-link">Check ATS fit</Link>
+            </div>
+          </div>
+          <aside className="dashboard-focus">
+            <div className="dashboard-focus-top">
+              <span>WORKSPACE SNAPSHOT</span>
+              <span className="dashboard-focus-mark" aria-hidden="true">R</span>
+            </div>
+            {isLoading ? (
+              <p>Loading your resume library…</p>
+            ) : loadError ? (
+              <p>Resume data is temporarily unavailable.</p>
+            ) : resumes.length ? (
+              <>
+                <strong>{resumes.length}</strong>
+                <p>{resumes.length === 1 ? 'resume in your library' : 'resumes in your library'}</p>
+                <div className="dashboard-focus-rule"><span style={{ width: `${completion}%` }} /></div>
+                <small>{completion}% complete · latest resume</small>
+              </>
+            ) : (
+              <>
+                <strong>01</strong>
+                <p>Start with one clear, complete resume.</p>
+                <Link to="/resume/create">Build your first resume <span aria-hidden="true">→</span></Link>
+              </>
+            )}
+          </aside>
+        </header>
 
-        {/* Stats Section */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-number">{stats.totalResumes}</div>
-            <div className="stat-label">Total Resumes</div>
+        <section className="dashboard-metrics" aria-label="Resume overview">
+          <div className="dashboard-metric">
+            <span>RESUMES</span>
+            <strong>{isLoading ? '—' : resumes.length}</strong>
+            <small>Saved in your library</small>
           </div>
-          <div className="stat-card">
-            <div className="stat-number">{stats.atsChecks}</div>
-            <div className="stat-label">ATS Checks</div>
+          <div className="dashboard-metric">
+            <span>AVERAGE ATS</span>
+            <strong>{isLoading || averageScore === null ? '—' : `${averageScore}%`}</strong>
+            <small>{scoredResumes.length ? `Across ${scoredResumes.length} scored resumes` : 'Run a check to see a score'}</small>
           </div>
-          <div className="stat-card">
-            <div className="stat-number">{stats.avgATSScore}%</div>
-            <div className="stat-label">Average ATS Score</div>
+          <div className="dashboard-metric">
+            <span>LATEST UPDATE</span>
+            <strong className="dashboard-metric-date">{isLoading ? '—' : formatDate(latestResume?.lastUpdated)}</strong>
+            <small>{latestResume?.name || 'Your first resume is one step away'}</small>
           </div>
-          <div className="stat-card">
-            <div className="stat-number">{stats.jobMatches}</div>
-            <div className="stat-label">Job Matches</div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <section className="quick-actions">
-          <h2>Quick Actions</h2>
-          <div className="actions-grid">
-            <Link to="/resume/create" className="action-card">
-              <div className="action-icon">✨</div>
-              <h3>Create Resume</h3>
-              <p>Start building a new resume</p>
-            </Link>
-            <Link to="/resume/update" className="action-card">
-              <div className="action-icon">📝</div>
-              <h3>Update Resume</h3>
-              <p>Convert existing resume</p>
-            </Link>
-            <Link to="/resume/enhance" className="action-card">
-              <div className="action-icon">⚡</div>
-              <h3>Enhance Resume</h3>
-              <p>Tailor for job posting</p>
-            </Link>
-            <Link to="/ats" className="action-card">
-              <div className="action-icon">✓</div>
-              <h3>ATS Validation</h3>
-              <p>Check your ATS score</p>
-            </Link>
+          <div className="dashboard-metric dashboard-metric-completion">
+            <span>PROFILE COVERAGE</span>
+            <strong>{isLoading || !latestResume ? '—' : `${completion}%`}</strong>
+            <small>{latestResume ? 'Latest resume fields completed' : 'Add details to track completion'}</small>
           </div>
         </section>
 
-        {/* Recent Resumes */}
-        <section className="recent-resumes">
-          <h2>Recent Resumes</h2>
-          {resumes.length > 0 ? (
-            <div className="resumes-table">
-              <div className="table-header">
-                <div className="col-name">Resume Name</div>
-                <div className="col-date">Last Updated</div>
-                <div className="col-score">ATS Score</div>
-                <div className="col-actions">Actions</div>
+        {loadError && <p className="dashboard-error" role="alert">{loadError}</p>}
+
+        <div className="dashboard-workspace-grid">
+          <section className="dashboard-library">
+            <div className="dashboard-section-heading">
+              <div>
+                <span className="dashboard-eyebrow">YOUR DOCUMENTS</span>
+                <h2>Recent resumes</h2>
               </div>
-              {resumes.map(resume => (
-                <div key={resume.id} className="table-row">
-                  <div className="col-name">{resume.name}</div>
-                  <div className="col-date">{resume.lastUpdated}</div>
-                  <div className="col-score">
-                    <span className="badge badge-success">{resume.atsScore}%</span>
-                  </div>
-                  <div className="col-actions">
-                    <Link to={`/resume/${resume.id}/edit`} className="link-btn">Edit</Link>
-                    <Link to={`/resume/${resume.id}/preview`} className="link-btn">Preview</Link>
-                  </div>
+              <Link to="/resumes">View library <span aria-hidden="true">↗</span></Link>
+            </div>
+            {isLoading ? (
+              <p className="dashboard-state">Loading resumes…</p>
+            ) : resumes.length ? (
+              <div className="dashboard-resume-list">
+                {resumes.slice(0, 5).map((resume, index) => (
+                  <article className="dashboard-resume-row" key={resume.id}>
+                    <span className="dashboard-resume-index">{String(index + 1).padStart(2, '0')}</span>
+                    <div className="dashboard-resume-copy">
+                      <Link to={`/resume/${resume.id}/edit`}>{resume.name || 'Untitled resume'}</Link>
+                      <span>{formatDate(resume.lastUpdated)}</span>
+                    </div>
+                    <span className={`dashboard-score${Number(resume.atsScore) > 0 ? ' has-score' : ''}`}>
+                      {Number(resume.atsScore) > 0 ? `${resume.atsScore}% ATS` : 'Not scored'}
+                    </span>
+                    <Link to={`/resume/${resume.id}/edit`} className="dashboard-row-action" aria-label={`Edit ${resume.name || 'resume'}`}>Edit <span aria-hidden="true">→</span></Link>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="dashboard-empty">
+                <span className="dashboard-empty-index">01</span>
+                <div>
+                  <h3>Your resume library is ready.</h3>
+                  <p>Create a resume from scratch or bring in an existing document.</p>
+                  <Link to="/resume/create" className="dashboard-primary-link">Start a resume <span aria-hidden="true">↗</span></Link>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <p>No resumes yet. <Link to="/resume/create">Create your first resume</Link></p>
-            </div>
-          )}
-        </section>
+              </div>
+            )}
+          </section>
+
+          <aside className="dashboard-toolbox">
+            <span className="dashboard-eyebrow">MOVE YOUR WORK FORWARD</span>
+            <h2>Quick actions</h2>
+            <Link to="/resume/create" className="dashboard-tool-link">
+              <span className="dashboard-tool-number">01</span>
+              <span><strong>Build a resume</strong><small>Start with your experience</small></span>
+              <span className="dashboard-tool-arrow" aria-hidden="true">↗</span>
+            </Link>
+            <Link to="/ats" className="dashboard-tool-link">
+              <span className="dashboard-tool-number">02</span>
+              <span><strong>Check ATS fit</strong><small>Review structure and keywords</small></span>
+              <span className="dashboard-tool-arrow" aria-hidden="true">↗</span>
+            </Link>
+            <Link to="/resume/update" className="dashboard-tool-link">
+              <span className="dashboard-tool-number">03</span>
+              <span><strong>Import a resume</strong><small>Continue from an existing file</small></span>
+              <span className="dashboard-tool-arrow" aria-hidden="true">↗</span>
+            </Link>
+          </aside>
+        </div>
       </div>
     </div>
   );

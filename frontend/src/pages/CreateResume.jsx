@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { createResume, getResume, updateResume } from '../services/api';
-import { useParams } from 'react-router-dom';
+import { createResume, rewriteResumeSection, getResume, updateResume } from '../services/api';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { downloadResumePdf } from '../services/resumePdf';
 import '../styles/pages.css';
 import '../styles/ResumeBuilder.css';
 
@@ -24,6 +25,8 @@ const emptyResumeData = {
   achievements: []
 };
 
+const toText = (value) => value === null || value === undefined ? '' : String(value);
+
 const normalizeResumeData = (data = {}) => ({
   ...emptyResumeData,
   ...data,
@@ -31,42 +34,80 @@ const normalizeResumeData = (data = {}) => ({
     ...emptyResumeData.personalInfo,
     ...(data.personalInfo || {})
   },
-  education: Array.isArray(data.education) ? data.education : [],
-  skills: Array.isArray(data.skills) ? data.skills : [],
-  experience: Array.isArray(data.experience) ? data.experience : [],
-  projects: Array.isArray(data.projects) ? data.projects : [],
+  education: Array.isArray(data.education) ? data.education.map((entry = {}) => ({
+    ...entry,
+    institution: toText(entry.institution),
+    degree: toText(entry.degree),
+    field: toText(entry.field),
+    startYear: toText(entry.startYear),
+    endYear: toText(entry.endYear),
+    cgpa: toText(entry.cgpa)
+  })) : [],
+  skills: Array.isArray(data.skills) ? data.skills.map(toText) : [],
+  experience: Array.isArray(data.experience) ? data.experience.map((entry = {}) => ({
+    ...entry,
+    company: toText(entry.company),
+    role: toText(entry.role),
+    location: toText(entry.location),
+    startDate: toText(entry.startDate),
+    endDate: toText(entry.endDate),
+    description: toText(entry.description)
+  })) : [],
+  projects: Array.isArray(data.projects) ? data.projects.map((entry = {}) => ({
+    ...entry,
+    name: toText(entry.name),
+    description: toText(entry.description),
+    technologies: toText(entry.technologies),
+    githubLink: toText(entry.githubLink),
+    liveLink: toText(entry.liveLink)
+  })) : [],
   certifications: Array.isArray(data.certifications) ? data.certifications : [],
   achievements: Array.isArray(data.achievements) ? data.achievements : []
 });
 
 function CreateResume() {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [saveStatus, setSaveStatus] = useState('');
   const [formData, setFormData] = useState(emptyResumeData);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [improvingField, setImprovingField] = useState('');
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
-    if (id) {
-      loadResume();
-    } else {
-      const saved = localStorage.getItem('currentResume');
-      if (saved) {
-        try {
-          setFormData(normalizeResumeData(JSON.parse(saved).data || JSON.parse(saved)));
-        } catch {
-          setFormData(emptyResumeData);
+    let isCurrent = true;
+    const loadResume = async () => {
+      try {
+        const importedResume = location.state?.importedResume;
+        const importedTargetResumeId = location.state?.targetResumeId || '';
+        if (importedResume && (!id || importedTargetResumeId === id)) {
+          setFormData(normalizeResumeData(importedResume));
+          setSaveStatus('Unsaved changes');
+          return;
         }
-      }
-    }
-  }, [id]);
 
-  const loadResume = async () => {
-    const response = await getResume(id);
-    if (response.success && response.resume.data) {
-      setFormData(normalizeResumeData(response.resume.data));
-    }
-  };
+        if (id) {
+          const response = await getResume(id);
+          if (isCurrent && response.success && response.resume.data) {
+            setFormData(normalizeResumeData(response.resume.data));
+          }
+        } else {
+          const saved = localStorage.getItem('currentResume');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setFormData(normalizeResumeData(parsed.data || parsed));
+          }
+        }
+      } catch (error) {
+        if (isCurrent) setActionError(error.message);
+      }
+    };
+
+    loadResume();
+    return () => { isCurrent = false; };
+  }, [id, location.state]);
 
   const handlePersonalInfoChange = (field, value) => {
     setFormData(prev => ({
@@ -79,6 +120,43 @@ function CreateResume() {
   const handleSummaryChange = (value) => {
     setFormData(prev => ({ ...prev, professionalSummary: value }));
     setSaveStatus('Unsaved changes');
+  };
+
+  const handleImproveText = async (field, text, section, applyText) => {
+    if (!text.trim()) return;
+    setImprovingField(field);
+    setActionError('');
+    try {
+      const response = await rewriteResumeSection(text, section);
+      applyText(response.text);
+    } catch (error) {
+      setActionError(error.message);
+    } finally {
+      setImprovingField('');
+    }
+  };
+
+  const improveButton = (field, text, section, applyText) => {
+    const sourceText = typeof text === 'string' ? text : '';
+    return (
+      <button
+        type="button"
+        className="btn-small"
+        onClick={() => handleImproveText(field, sourceText, section, applyText)}
+        disabled={!sourceText.trim() || Boolean(improvingField)}
+      >
+        {improvingField === field ? 'Improving...' : 'Improve with AI'}
+      </button>
+    );
+  };
+
+  const handleDownloadPDF = async () => {
+    setActionError('');
+    try {
+      await downloadResumePdf(formData);
+    } catch (error) {
+      setActionError(error.message);
+    }
   };
 
   const addEducation = () => {
@@ -172,21 +250,25 @@ function CreateResume() {
 
   const handleSaveResume = async () => {
     setIsLoading(true);
+    setActionError('');
     try {
       if (id) {
         await updateResume(id, formData);
+        navigate(`/resume/${id}/edit`, { replace: true, state: null });
       } else {
-        await createResume(formData);
+        const response = await createResume(formData);
+        if (!response.resume?.id) throw new Error('Resume was saved but its ID was not returned.');
+        localStorage.removeItem('currentResume');
+        navigate(`/resume/${response.resume.id}/edit`, { replace: true, state: null });
       }
       setSaveStatus('Saved');
       setTimeout(() => setSaveStatus(''), 2000);
+    } catch (error) {
+      setSaveStatus('Unsaved changes');
+      setActionError(error.message);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDownloadPDF = () => {
-    alert('PDF download would be implemented with a real backend');
   };
 
   const handleReset = () => {
@@ -209,9 +291,10 @@ function CreateResume() {
             {isLoading ? 'Saving...' : 'Save Resume'}
           </button>
           <button onClick={handleReset} className="btn btn-secondary">Reset</button>
-          <button onClick={handleDownloadPDF} className="btn btn-secondary">Download</button>
+          <button onClick={handleDownloadPDF} className="btn btn-secondary">Download PDF</button>
         </div>
       </div>
+      {actionError && <p className="builder-error" role="alert">{actionError}</p>}
 
       <div className="builder-container">
         {/* Left - Form */}
@@ -265,9 +348,57 @@ function CreateResume() {
           <section className="form-section">
             <div className="section-header">
               <h2>Professional Summary</h2>
-              <button className="btn-small">Generate with AI</button>
+              {improveButton('summary', formData.professionalSummary, 'professional summary', handleSummaryChange)}
             </div>
             <textarea value={formData.professionalSummary} onChange={(e) => handleSummaryChange(e.target.value)} placeholder="Experienced developer with 5+ years in cloud technologies..." rows="4" />
+          </section>
+
+          <section className="form-section">
+            <div className="section-header">
+              <h2>Certifications</h2>
+              <button type="button" onClick={() => setFormData(prev => ({ ...prev, certifications: [...prev.certifications, { name: '', issuer: '', date: '', description: '' }] }))} className="btn-small">+ Add Certification</button>
+            </div>
+            {formData.certifications.map((certification, index) => (
+              <div key={index} className="entry-block">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Certification</label>
+                    <input value={typeof certification === 'string' ? certification : certification.name || ''} onChange={(e) => {
+                      const certifications = [...formData.certifications];
+                      certifications[index] = { ...(typeof certification === 'object' ? certification : {}), name: e.target.value };
+                      setFormData(prev => ({ ...prev, certifications }));
+                      setSaveStatus('Unsaved changes');
+                    }} placeholder="AWS Certified Cloud Practitioner" />
+                  </div>
+                  <div className="form-group">
+                    <label>Issuer and date</label>
+                    <input value={[certification.issuer, certification.date].filter(Boolean).join(' | ')} onChange={(e) => {
+                      const [issuer, ...date] = e.target.value.split('|');
+                      const certifications = [...formData.certifications];
+                      certifications[index] = { ...(typeof certification === 'object' ? certification : { name: certification }), issuer: issuer.trim(), date: date.join('|').trim() };
+                      setFormData(prev => ({ ...prev, certifications }));
+                      setSaveStatus('Unsaved changes');
+                    }} placeholder="Amazon Web Services | 2026" />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea value={certification.description || ''} onChange={(e) => {
+                    const certifications = [...formData.certifications];
+                    certifications[index] = { ...certification, description: e.target.value };
+                    setFormData(prev => ({ ...prev, certifications }));
+                    setSaveStatus('Unsaved changes');
+                  }} rows="2" />
+                  {improveButton(`certification-${index}`, certification.description || '', 'certification', (text) => {
+                    const certifications = [...formData.certifications];
+                    certifications[index] = { ...certification, description: text };
+                    setFormData(prev => ({ ...prev, certifications }));
+                    setSaveStatus('Unsaved changes');
+                  })}
+                </div>
+                <button type="button" onClick={() => setFormData(prev => ({ ...prev, certifications: prev.certifications.filter((_, itemIndex) => itemIndex !== index) }))} className="btn-danger btn-small">Remove</button>
+              </div>
+            ))}
           </section>
 
           {/* Education */}
@@ -356,16 +487,17 @@ function CreateResume() {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Start Date</label>
-                    <input type="date" value={exp.startDate} onChange={(e) => updateExperience(index, 'startDate', e.target.value)} />
+                    <input type="text" value={exp.startDate} onChange={(e) => updateExperience(index, 'startDate', e.target.value)} placeholder="e.g. Sep 2024" />
                   </div>
                   <div className="form-group">
                     <label>End Date</label>
-                    <input type="date" value={exp.endDate} onChange={(e) => updateExperience(index, 'endDate', e.target.value)} />
+                    <input type="text" value={exp.endDate} onChange={(e) => updateExperience(index, 'endDate', e.target.value)} placeholder="e.g. Present" />
                   </div>
                 </div>
                 <div className="form-group">
                   <label>Description</label>
                   <textarea value={exp.description} onChange={(e) => updateExperience(index, 'description', e.target.value)} placeholder="Describe your responsibilities and achievements" rows="3" />
+                  {improveButton(`experience-${index}`, exp.description, 'professional experience', (text) => updateExperience(index, 'description', text))}
                 </div>
                 <button onClick={() => removeExperience(index)} className="btn-danger btn-small">Remove</button>
               </div>
@@ -387,6 +519,7 @@ function CreateResume() {
                 <div className="form-group">
                   <label>Description</label>
                   <textarea value={proj.description} onChange={(e) => updateProject(index, 'description', e.target.value)} placeholder="Describe your project" rows="2" />
+                  {improveButton(`project-${index}`, proj.description, 'project', (text) => updateProject(index, 'description', text))}
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -408,6 +541,29 @@ function CreateResume() {
               </div>
             ))}
           </section>
+          <section className="form-section">
+            <div className="section-header">
+              <h2>Achievements</h2>
+              <button type="button" onClick={() => setFormData(prev => ({ ...prev, achievements: [...prev.achievements, ''] }))} className="btn-small">+ Add Achievement</button>
+            </div>
+            {formData.achievements.map((achievement, index) => {
+              const achievementText = typeof achievement === 'string' ? achievement : achievement.title || '';
+              const updateAchievement = (text) => {
+                const achievements = [...formData.achievements];
+                achievements[index] = text;
+                setFormData(prev => ({ ...prev, achievements }));
+                setSaveStatus('Unsaved changes');
+              };
+
+              return (
+                <div key={index} className="achievement-entry">
+                  <input value={achievementText} onChange={(e) => updateAchievement(e.target.value)} placeholder="Award, competition placement, or recognition" />
+                  {improveButton(`achievement-${index}`, achievementText, 'achievement', updateAchievement)}
+                  <button type="button" onClick={() => setFormData(prev => ({ ...prev, achievements: prev.achievements.filter((_, itemIndex) => itemIndex !== index) }))} className="btn-icon" aria-label="Remove achievement">✕</button>
+                </div>
+              );
+            })}
+          </section>
         </div>
 
         {/* Right - Preview */}
@@ -415,25 +571,36 @@ function CreateResume() {
           <div className="preview-sticky">
             <div className="resume-preview">
               <div className="resume-container">
-                <div className="resume-header">
+                <div className="resume-header" style={{ order: 0 }}>
                   <div className="resume-name">{formData.personalInfo.fullName || 'Your Name'}</div>
                   <div className="resume-title">{formData.personalInfo.professionalTitle || 'Professional Title'}</div>
                   <div className="resume-contact">
-                    {formData.personalInfo.email && <span>📧 {formData.personalInfo.email}</span>}
-                    {formData.personalInfo.phone && <span>📱 {formData.personalInfo.phone}</span>}
-                    {formData.personalInfo.location && <span>📍 {formData.personalInfo.location}</span>}
+                    {[formData.personalInfo.email, formData.personalInfo.phone, formData.personalInfo.location, formData.personalInfo.linkedin, formData.personalInfo.github, formData.personalInfo.portfolio].filter(Boolean).join(' | ')}
                   </div>
                 </div>
 
                 {formData.professionalSummary && (
-                  <div className="resume-section">
+                  <div className="resume-section" style={{ order: 1 }}>
                     <div className="section-title">PROFESSIONAL SUMMARY</div>
                     <div className="section-content">{formData.professionalSummary}</div>
                   </div>
                 )}
 
+                {formData.certifications.length > 0 && (
+                  <div className="resume-section" style={{ order: 3 }}>
+                    <div className="section-title">CERTIFICATIONS</div>
+                    {formData.certifications.map((certification, idx) => (
+                      <div key={idx} className="item">
+                        <div className="item-title">{typeof certification === 'string' ? certification : certification.name}</div>
+                        {typeof certification === 'object' && <div className="item-subtitle">{[certification.issuer, certification.date].filter(Boolean).join(' | ')}</div>}
+                        {typeof certification === 'object' && certification.description && <div className="item-description">{certification.description}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {formData.education.length > 0 && (
-                  <div className="resume-section">
+                  <div className="resume-section" style={{ order: 7 }}>
                     <div className="section-title">EDUCATION</div>
                     <div className="section-content">
                       {formData.education.map((edu, idx) => (
@@ -451,15 +618,15 @@ function CreateResume() {
                 )}
 
                 {formData.skills.length > 0 && (
-                  <div className="resume-section">
+                  <div className="resume-section" style={{ order: 2 }}>
                     <div className="section-title">TECHNICAL SKILLS</div>
                     <div className="skills-list">{formData.skills.join(' • ')}</div>
                   </div>
                 )}
 
                 {formData.experience.length > 0 && (
-                  <div className="resume-section">
-                    <div className="section-title">EXPERIENCE</div>
+                  <div className="resume-section" style={{ order: 4 }}>
+                    <div className="section-title">PROFESSIONAL EXPERIENCE</div>
                     <div className="section-content">
                       {formData.experience.map((exp, idx) => (
                         <div key={idx} className="item">
@@ -476,7 +643,7 @@ function CreateResume() {
                 )}
 
                 {formData.projects.length > 0 && (
-                  <div className="resume-section">
+                  <div className="resume-section" style={{ order: 5 }}>
                     <div className="section-title">PROJECTS</div>
                     <div className="section-content">
                       {formData.projects.map((proj, idx) => (
@@ -489,6 +656,15 @@ function CreateResume() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {formData.achievements.length > 0 && (
+                  <div className="resume-section" style={{ order: 6 }}>
+                    <div className="section-title">ACHIEVEMENTS</div>
+                    {formData.achievements.map((achievement, idx) => (
+                      <div key={idx} className="item-description">{typeof achievement === 'string' ? achievement : achievement.title}</div>
+                    ))}
                   </div>
                 )}
               </div>

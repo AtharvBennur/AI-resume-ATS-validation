@@ -114,6 +114,10 @@ class ProjectTests(unittest.TestCase):
         build = run_command([NPM, "run", "build"], FRONTEND)
         self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
 
+    def test_frontend_unit_tests(self) -> None:
+        result = run_command([NPM, "test"], FRONTEND)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_backend_tests(self) -> None:
         result = run_command([NPM, "test"], BACKEND)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

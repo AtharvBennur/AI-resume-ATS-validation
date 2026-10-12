@@ -4,6 +4,8 @@ const express = require('express');
 const cors = require('cors');
 const connectDatabase = require('./config/db');
 const authRoutes = require('./routes/auth');
+const aiRoutes = require('./routes/ai');
+const resumeRoutes = require('./routes/resumes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -22,6 +24,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'fsd-resume-backend' });
 });
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/resumes', resumeRoutes);
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use(errorHandler);
 

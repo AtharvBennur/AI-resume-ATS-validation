@@ -7,9 +7,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function issueToken(user) {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not configured');
-  return jwt.sign({ sub: user._id.toString() }, secret, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-  });
+  return jwt.sign({ sub: user._id.toString() }, secret);
 }
 
 function publicUser(user) {
@@ -71,4 +69,4 @@ async function me(req, res) {
   return res.json({ user: publicUser(req.user) });
 }
 
-module.exports = { register, login, me };
+module.exports = { register, login, me, issueToken };

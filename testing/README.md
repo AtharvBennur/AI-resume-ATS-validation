@@ -12,6 +12,7 @@ The suite checks:
 - All routes declared in the React router.
 - Authentication guard and login API wiring.
 - Frontend lint and production build.
+- Frontend PDF structure and pagination tests.
 - Backend automated tests.
 - HTTP availability of every static frontend route through Vite.
 
