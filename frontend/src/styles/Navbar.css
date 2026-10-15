@@ -36,6 +36,13 @@
   object-fit: contain;
 }
 
+.footer-logo-image {
+  display: block;
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+}
+
 .logo-icon {
   display: inline-flex;
   align-items: center;

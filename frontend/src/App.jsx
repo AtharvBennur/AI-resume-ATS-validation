@@ -58,7 +58,7 @@ function App() {
         <footer className="site-footer">
           <div className="container footer-inner">
             <div className="footer-brand">
-              <span className="logo-icon">📄</span>
+              <img className="footer-logo-image" src="/resume-mark.svg" alt="" />
               <div>
                 <strong>AI Resume Maker</strong>
                 <small>Career growth, simplified.</small>

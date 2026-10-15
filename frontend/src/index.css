@@ -1,11 +1,11 @@
 :root {
-  --primary: #1d624d;
-  --primary-strong: #164e3d;
-  --primary-soft: rgba(29, 98, 77, 0.1);
-  --dark: #1c3026;
-  --dark-soft: #25372c;
-  --background: #f5f6f2;
-  --background-elevated: #e9eee8;
+  --primary: #17634d;
+  --primary-strong: #0c3f31;
+  --primary-soft: rgba(23, 99, 77, 0.1);
+  --dark: #142b23;
+  --dark-soft: #203b31;
+  --background: #f3f5f0;
+  --background-elevated: #e8eee7;
   --white: #FFFFFF;
   --border: #dce2dc;
   --success: #16A34A;
@@ -36,6 +36,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
+  background-image: radial-gradient(circle at 8% 2%, rgba(193, 158, 90, 0.09), transparent 20rem);
 }
 
 #root {
@@ -171,7 +172,7 @@ input.input-error:focus, textarea.input-error:focus, select.input-error:focus {
   border: none;
   border-radius: 0.3rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.22s cubic-bezier(.2,.8,.2,1), box-shadow 0.22s ease, background-color 0.22s ease, border-color 0.22s ease;
   text-decoration: none;
 }
 
@@ -187,7 +188,8 @@ input.input-error:focus, textarea.input-error:focus, select.input-error:focus {
 
 .btn-primary:hover:not(:disabled) {
   background-color: var(--primary-strong);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 13px 24px -14px rgba(12, 63, 49, 0.6);
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
@@ -199,6 +201,11 @@ input.input-error:focus, textarea.input-error:focus, select.input-error:focus {
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--background);
   border-color: var(--primary);
+}
+
+.btn:focus-visible, a:focus-visible, button:focus-visible {
+  outline: 3px solid rgba(190, 143, 61, 0.42);
+  outline-offset: 3px;
 }
 
 .btn-danger {
@@ -290,6 +297,15 @@ input.input-error:focus, textarea.input-error:focus, select.input-error:focus {
 .card:hover {
   border-color: var(--primary);
   box-shadow: var(--shadow-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Loading */
