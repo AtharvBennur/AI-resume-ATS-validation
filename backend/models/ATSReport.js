@@ -5,6 +5,7 @@ const atsReportSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     resume: { type: mongoose.Schema.Types.ObjectId, ref: 'Resume', default: null, index: true },
     resumeName: { type: String, required: true, trim: true, maxlength: 160 },
+    jobPostingUrl: { type: String, trim: true },
     score: { type: Number, required: true, min: 0, max: 100 },
     status: { type: String, required: true },
     breakdown: { type: mongoose.Schema.Types.Mixed, required: true },

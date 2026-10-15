@@ -1,21 +1,21 @@
 :root {
-  --primary: #2563EB;
-  --primary-strong: #1d4ed8;
-  --primary-soft: rgba(37, 99, 235, 0.12);
-  --dark: #0F172A;
-  --dark-soft: #111827;
-  --background: #F8FAFC;
-  --background-elevated: #EEF4FF;
+  --primary: #1d624d;
+  --primary-strong: #164e3d;
+  --primary-soft: rgba(29, 98, 77, 0.1);
+  --dark: #1c3026;
+  --dark-soft: #25372c;
+  --background: #f5f6f2;
+  --background-elevated: #e9eee8;
   --white: #FFFFFF;
-  --border: #E2E8F0;
+  --border: #dce2dc;
   --success: #16A34A;
   --warning: #F59E0B;
   --danger: #DC2626;
-  --text-primary: #1E293B;
-  --text-secondary: #64748B;
-  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 8px 24px -12px rgba(37, 99, 235, 0.35);
-  --shadow-lg: 0 20px 45px -20px rgba(15, 23, 42, 0.28);
+  --text-primary: #29372f;
+  --text-secondary: #68746c;
+  --shadow-sm: 0 1px 3px rgba(28, 48, 38, 0.05);
+  --shadow-md: 0 10px 26px -16px rgba(28, 48, 38, 0.2);
+  --shadow-lg: 0 18px 38px -24px rgba(28, 48, 38, 0.24);
 }
 
 * {
@@ -30,9 +30,7 @@ html, body {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 30%),
-    linear-gradient(to bottom, #f8fbff 0%, #f8fafc 40%, #f1f5f9 100%);
+  background: #f7f8f5;
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -116,7 +114,7 @@ a {
 }
 
 a:hover {
-  color: #1d4ed8;
+  color: var(--primary-strong);
 }
 
 .link {
@@ -144,7 +142,7 @@ input, textarea, select {
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(29, 98, 77, 0.1);
 }
 
 input:disabled, textarea:disabled, select:disabled {
@@ -171,7 +169,7 @@ input.input-error:focus, textarea.input-error:focus, select.input-error:focus {
   font-weight: 600;
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 0.3rem;
   cursor: pointer;
   transition: all 0.2s;
   text-decoration: none;
@@ -188,7 +186,7 @@ input.input-error:focus, textarea.input-error:focus, select.input-error:focus {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #1d4ed8;
+  background-color: var(--primary-strong);
   box-shadow: var(--shadow-md);
 }
 
@@ -326,8 +324,8 @@ input.input-error:focus, textarea.input-error:focus, select.input-error:focus {
   display: inline-block;
   padding: 0.5rem 1rem;
   margin: 0.25rem;
-  background-color: #E0E7FF;
-  color: #4F46E5;
+  background-color: #E8F0EA;
+  color: #315B49;
   border-radius: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;

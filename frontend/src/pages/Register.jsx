@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerUser } from '../services/api';
+import DatabaseStatus from '../components/DatabaseStatus';
 import '../styles/pages.css';
 
-function Register() {
+function Register({ onLogin }) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: '',
@@ -17,7 +18,7 @@ function Register() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.fullName) newErrors.fullName = 'Full name is required';
+    if (formData.fullName.trim().length < 2) newErrors.fullName = 'Name must be at least 2 characters';
     if (!formData.email) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format';
     if (!formData.password) newErrors.password = 'Password is required';
@@ -46,8 +47,12 @@ function Register() {
     setGeneralError('');
 
     try {
-      await registerUser(formData.fullName, formData.email, formData.password);
-      navigate('/login');
+      const response = await registerUser(formData.fullName.trim(), formData.email.trim(), formData.password);
+      localStorage.setItem('authToken', response.token);
+      localStorage.setItem('userEmail', response.user.email);
+      localStorage.setItem('userName', response.user.name);
+      onLogin();
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       setGeneralError(error.message || 'Registration failed');
     } finally {
@@ -61,6 +66,8 @@ function Register() {
         <div className="auth-card">
           <h2>Create Your Account</h2>
           <p className="auth-subtitle">Join us to create and enhance your resume.</p>
+
+          <DatabaseStatus />
 
           {generalError && <div className="error-message">{generalError}</div>}
 

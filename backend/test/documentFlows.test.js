@@ -5,6 +5,7 @@ const request = require('supertest');
 const ATSReport = require('../models/ATSReport');
 const Resume = require('../models/Resume');
 const User = require('../models/User');
+const jobPosting = require('../utils/jobPosting');
 
 process.env.JWT_SECRET = 'document-flow-test-secret';
 const app = require('../server');
@@ -82,6 +83,7 @@ test('ATS upload stores a real score, updates the selected resume, and returns p
   const originalResumeFindOne = Resume.findOne;
   const originalReportCreate = ATSReport.create;
   const originalReportFindOne = ATSReport.findOne;
+  const originalFetchJobPostingText = jobPosting.fetchJobPostingText;
   const userId = '507f1f77bcf86cd799439011';
   const resumeId = '507f191e810c19729de860ea';
   const reportId = '507f1f77bcf86cd799439012';
@@ -100,6 +102,10 @@ test('ATS upload stores a real score, updates the selected resume, and returns p
     return savedReport;
   };
   ATSReport.findOne = async () => savedReport;
+  jobPosting.fetchJobPostingText = async () => ({
+    text: 'Python React AWS Docker Kubernetes',
+    url: 'https://jobs.example.test/software-engineer'
+  });
   const token = jwt.sign({ sub: userId }, process.env.JWT_SECRET);
 
   try {
@@ -107,13 +113,14 @@ test('ATS upload stores a real score, updates the selected resume, and returns p
       .post('/api/ai/ats/validate')
       .set('Authorization', `Bearer ${token}`)
       .field('resumeId', resumeId)
-      .field('jobDescription', 'Python React AWS Docker Kubernetes')
+      .field('jobPostingUrl', 'https://jobs.example.test/software-engineer')
       .attach('resume', pdfBuffer, { filename: 'morgan-resume.pdf', contentType: 'application/pdf' });
 
     assert.equal(response.status, 200, JSON.stringify(response.body));
     assert.equal(response.body.report.id, reportId);
     assert.ok(response.body.report.score > 0 && response.body.report.score <= 100);
     assert.equal(response.body.report.breakdown.keywordMatch, 80);
+    assert.equal(response.body.report.jobPostingUrl, 'https://jobs.example.test/software-engineer');
     assert.equal(savedResume.atsScore, response.body.report.score);
     assert.equal(savedResume.saved, true);
 
@@ -123,11 +130,13 @@ test('ATS upload stores a real score, updates the selected resume, and returns p
     assert.equal(reportResponse.status, 200);
     assert.equal(reportResponse.body.report.score, response.body.report.score);
     assert.equal(reportResponse.body.report.resumeName, 'Morgan Lee Resume');
+    assert.equal(reportResponse.body.report.jobPostingUrl, 'https://jobs.example.test/software-engineer');
   } finally {
     User.findById = originalFindById;
     Resume.findOne = originalResumeFindOne;
     ATSReport.create = originalReportCreate;
     ATSReport.findOne = originalReportFindOne;
+    jobPosting.fetchJobPostingText = originalFetchJobPostingText;
   }
 });
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createResume, rewriteResumeSection, getResume, updateResume } from '../services/api';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { downloadResumePdf } from '../services/resumePdf';
+import { scoreResumeData } from '../services/atsScore';
 import '../styles/pages.css';
 import '../styles/ResumeBuilder.css';
 
@@ -71,13 +72,19 @@ function CreateResume() {
   const navigate = useNavigate();
   const [saveStatus, setSaveStatus] = useState('');
   const [formData, setFormData] = useState(emptyResumeData);
+  const [draftReady, setDraftReady] = useState(false);
+  const [activeDraftKey, setActiveDraftKey] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [improvingField, setImprovingField] = useState('');
   const [actionError, setActionError] = useState('');
 
+  const draftKey = `resume-builder-draft:${encodeURIComponent(localStorage.getItem('userEmail') || 'local')}:${id || 'new'}`;
+
   useEffect(() => {
     let isCurrent = true;
+    setDraftReady(false);
+    setActiveDraftKey('');
     const loadResume = async () => {
       try {
         const importedResume = location.state?.importedResume;
@@ -85,29 +92,76 @@ function CreateResume() {
         if (importedResume && (!id || importedTargetResumeId === id)) {
           setFormData(normalizeResumeData(importedResume));
           setSaveStatus('Unsaved changes');
+          setActiveDraftKey(draftKey);
+          setDraftReady(true);
+          return;
+        }
+
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+          const parsedDraft = JSON.parse(savedDraft);
+          if (!isCurrent) return;
+          setFormData(normalizeResumeData(parsedDraft.data));
+          setSaveStatus('Draft recovered');
+          setActiveDraftKey(draftKey);
+          setDraftReady(true);
           return;
         }
 
         if (id) {
           const response = await getResume(id);
-          if (isCurrent && response.success && response.resume.data) {
+          if (!isCurrent) return;
+          if (response.success && response.resume.data) {
             setFormData(normalizeResumeData(response.resume.data));
           }
-        } else {
+        }
+
+        if (!isCurrent) return;
+        if (!id) {
           const saved = localStorage.getItem('currentResume');
           if (saved) {
             const parsed = JSON.parse(saved);
             setFormData(normalizeResumeData(parsed.data || parsed));
+          } else {
+            setFormData(normalizeResumeData(emptyResumeData));
           }
         }
+        setActiveDraftKey(draftKey);
+        setDraftReady(true);
       } catch (error) {
-        if (isCurrent) setActionError(error.message);
+        if (isCurrent) {
+          setActionError(error.message);
+          setFormData(normalizeResumeData(emptyResumeData));
+          setActiveDraftKey(draftKey);
+          setDraftReady(true);
+        }
       }
     };
 
     loadResume();
     return () => { isCurrent = false; };
-  }, [id, location.state]);
+  }, [id, location.state, draftKey]);
+
+  useEffect(() => {
+    if (!draftReady || activeDraftKey !== draftKey) return undefined;
+
+    const isEmpty = JSON.stringify(formData) === JSON.stringify(normalizeResumeData(emptyResumeData));
+    if (isEmpty) {
+      localStorage.removeItem(draftKey);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({ data: formData, updatedAt: new Date().toISOString() }));
+        setSaveStatus('Draft saved');
+      } catch (error) {
+        setActionError(`Could not save your resume draft in this browser: ${error.message}`);
+      }
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [formData, draftReady, activeDraftKey, draftKey]);
 
   const handlePersonalInfoChange = (field, value) => {
     setFormData(prev => ({
@@ -254,10 +308,12 @@ function CreateResume() {
     try {
       if (id) {
         await updateResume(id, formData);
+        localStorage.removeItem(draftKey);
         navigate(`/resume/${id}/edit`, { replace: true, state: null });
       } else {
         const response = await createResume(formData);
         if (!response.resume?.id) throw new Error('Resume was saved but its ID was not returned.');
+        localStorage.removeItem(draftKey);
         localStorage.removeItem('currentResume');
         navigate(`/resume/${response.resume.id}/edit`, { replace: true, state: null });
       }
@@ -277,9 +333,12 @@ function CreateResume() {
         ...emptyResumeData,
         personalInfo: { ...emptyResumeData.personalInfo }
       });
+      localStorage.removeItem(draftKey);
       setSaveStatus('');
     }
   };
+
+  const liveAtsScore = scoreResumeData(formData);
 
   return (
     <div className="resume-builder">
@@ -299,6 +358,12 @@ function CreateResume() {
       <div className="builder-container">
         {/* Left - Form */}
         <div className="builder-form">
+          <section className="live-ats-score" aria-live="polite" aria-label="Live ATS score">
+            <span>Live ATS Score</span>
+            <strong>{liveAtsScore.score}<small>/100</small></strong>
+          </section>
+
+          <div className="builder-form-content">
           {/* Personal Information */}
           <section className="form-section">
             <h2>Personal Information</h2>
@@ -564,6 +629,7 @@ function CreateResume() {
               );
             })}
           </section>
+          </div>
         </div>
 
         {/* Right - Preview */}

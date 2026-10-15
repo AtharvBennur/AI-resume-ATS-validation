@@ -1,9 +1,4 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-export const DEMO_CREDENTIALS = {
-  email: 'demo@airesume.local',
-  password: 'Demo@1234'
-};
-
 const request = async (path, options = {}) => {
   const token = localStorage.getItem('authToken');
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -24,6 +19,8 @@ const request = async (path, options = {}) => {
   return payload;
 };
 
+export const getApiHealth = () => request('/health');
+
 const requireRegisteredAccount = () => {
   const token = localStorage.getItem('authToken');
   if (!token || token === 'demo-token-local') {
@@ -35,12 +32,6 @@ export const rewriteResumeSection = (text, section) => request('/ai/rewrite', {
   method: 'POST',
   body: JSON.stringify({ text, section })
 });
-
-// Mock data
-const mockUsers = {
-  [DEMO_CREDENTIALS.email]: { id: 'demo-user', name: 'Demo User', email: DEMO_CREDENTIALS.email, phone: '', location: '', linkedin: '', github: '', portfolio: '' },
-  'user@example.com': { id: 1, name: 'Atharv Kumar', email: 'user@example.com', phone: '+91 9876543210', location: 'Bangalore, India', linkedin: 'linkedin.com/in/atharv', github: 'github.com/atharv', portfolio: 'atharv.dev' }
-};
 
 const demoResumeData = {
   personalInfo: {
@@ -68,16 +59,10 @@ const mockResumes = [
 ];
 
 // Auth APIs
-export const loginUser = async (email, password) => {
-  if (email.trim().toLowerCase() === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-    return { success: true, token: 'demo-token-local', user: mockUsers[DEMO_CREDENTIALS.email] };
-  }
-
-  return request('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password })
-  });
-};
+export const loginUser = (email, password) => request('/auth/login', {
+  method: 'POST',
+  body: JSON.stringify({ email, password })
+});
 
 export const registerUser = async (name, email, password) => {
   return request('/auth/register', {
@@ -86,31 +71,12 @@ export const registerUser = async (name, email, password) => {
   });
 };
 
-export const getProfile = async () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const token = localStorage.getItem('authToken');
-      const email = localStorage.getItem('userEmail');
-      if (token && email) {
-        resolve({ success: true, user: mockUsers[email] });
-      } else {
-        resolve({ success: false });
-      }
-    }, 300);
-  });
-};
+export const getProfile = () => request('/auth/me');
 
-export const updateProfile = async (profileData) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const email = localStorage.getItem('userEmail');
-      if (email) {
-        mockUsers[email] = { ...mockUsers[email], ...profileData };
-        resolve({ success: true, user: mockUsers[email] });
-      }
-    }, 300);
-  });
-};
+export const updateProfile = (profileData) => request('/auth/me', {
+  method: 'PATCH',
+  body: JSON.stringify({ name: profileData.name })
+});
 
 // Resume APIs
 export const createResume = async (resumeData) => {
@@ -197,11 +163,11 @@ export const matchResumeToJob = (resumeId, jobDescription) => request('/ai/job-m
 });
 
 // ATS APIs
-export const validateATS = (resumeFile, jobDescription = '', resumeId = '') => {
+export const validateATS = (resumeFile, jobPostingUrl, resumeId = '') => {
   requireRegisteredAccount();
   const formData = new FormData();
   formData.append('resume', resumeFile);
-  if (jobDescription.trim()) formData.append('jobDescription', jobDescription.trim());
+  formData.append('jobPostingUrl', jobPostingUrl.trim());
   if (resumeId) formData.append('resumeId', resumeId);
   return request('/ai/ats/validate', { method: 'POST', body: formData });
 };

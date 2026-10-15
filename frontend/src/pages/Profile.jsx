@@ -1,134 +1,162 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getProfile, updateProfile } from '../services/api';
 import '../styles/pages.css';
 
 function Profile() {
-  const [profileData, setProfileData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    location: '',
-    linkedin: '',
-    github: '',
-    portfolio: ''
-  });
+  const [profile, setProfile] = useState(null);
+  const [name, setName] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState(profileData);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
-    const loadProfile = async () => {
-      const response = await getProfile();
-      if (response.success) {
-        setProfileData(response.user);
-        setFormData(response.user);
-      }
-      setIsLoading(false);
+    let isCurrent = true;
+    getProfile()
+      .then(({ user }) => {
+        if (!isCurrent) return;
+        setProfile(user);
+        setName(user.name);
+      })
+      .catch((requestError) => {
+        if (isCurrent) setError(requestError.message);
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
     };
-    loadProfile();
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+    setNotice('');
+
+    try {
+      const response = await updateProfile({ name });
+      setProfile(response.user);
+      setName(response.user.name);
+      localStorage.setItem('userName', response.user.name);
+      setIsEditing(false);
+      setNotice('Your profile has been updated.');
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    await updateProfile(formData);
-    setProfileData(formData);
+  const cancelEditing = () => {
+    setName(profile.name);
+    setError('');
     setIsEditing(false);
   };
 
-  if (isLoading) return <div className="container"><p>Loading...</p></div>;
+  if (isLoading) {
+    return <div className="workspace-page"><div className="workspace-container"><p className="workspace-state">Loading your profile...</p></div></div>;
+  }
+
+  if (!profile) {
+    return (
+      <div className="workspace-page">
+        <div className="workspace-container">
+          <header className="workspace-page-heading">
+            <span className="workspace-eyebrow">ACCOUNT</span>
+            <h1>Your profile</h1>
+          </header>
+          <p className="workspace-message workspace-message-error" role="alert">{error || 'Your profile could not be loaded.'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="profile-page">
-      <div className="container">
-        <div className="page-header">
-          <h1>My Profile</h1>
-          {!isEditing && <button onClick={() => setIsEditing(true)} className="btn btn-secondary">Edit Profile</button>}
-        </div>
+    <div className="workspace-page">
+      <div className="workspace-container">
+        <header className="workspace-page-heading">
+          <span className="workspace-eyebrow">ACCOUNT</span>
+          <h1>Your profile</h1>
+          <p>Manage the details associated with your account.</p>
+        </header>
 
-        <div className="profile-card">
-          {isEditing ? (
-            <form onSubmit={handleSave} className="profile-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Full Name</label>
-                  <input name="name" value={formData.name} onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input name="email" value={formData.email} onChange={handleChange} disabled />
-                </div>
-              </div>
+        {error && <p className="workspace-message workspace-message-error" role="alert">{error}</p>}
+        {notice && <p className="workspace-message workspace-message-success" role="status">{notice}</p>}
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input name="phone" value={formData.phone} onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label>Location</label>
-                  <input name="location" value={formData.location} onChange={handleChange} />
-                </div>
-              </div>
+        <section className="profile-layout" aria-label="Account profile">
+          <aside className="profile-overview">
+            <div className="profile-avatar" aria-hidden="true">{profile.name.trim().charAt(0).toUpperCase()}</div>
+            <h2>{profile.name}</h2>
+            <p>{profile.email}</p>
+            <span className="account-status"><span aria-hidden="true" /> Active account</span>
+          </aside>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>LinkedIn</label>
-                  <input name="linkedin" value={formData.linkedin} onChange={handleChange} placeholder="linkedin.com/in/yourprofile" />
-                </div>
-                <div className="form-group">
-                  <label>GitHub</label>
-                  <input name="github" value={formData.github} onChange={handleChange} placeholder="github.com/yourprofile" />
-                </div>
+          <div className="profile-details">
+            <div className="workspace-section-heading">
+              <div>
+                <span className="workspace-eyebrow">PERSONAL DETAILS</span>
+                <h2>Account information</h2>
               </div>
-
-              <div className="form-group">
-                <label>Portfolio</label>
-                <input name="portfolio" value={formData.portfolio} onChange={handleChange} placeholder="yoursite.com" />
-              </div>
-
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary">Save Changes</button>
-                <button type="button" onClick={() => { setIsEditing(false); setFormData(profileData); }} className="btn btn-secondary">Cancel</button>
-              </div>
-            </form>
-          ) : (
-            <div className="profile-info">
-              <div className="info-row">
-                <span className="label">Full Name:</span>
-                <span className="value">{profileData.name}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Email:</span>
-                <span className="value">{profileData.email}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Phone:</span>
-                <span className="value">{profileData.phone || '-'}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Location:</span>
-                <span className="value">{profileData.location || '-'}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">LinkedIn:</span>
-                <span className="value">{profileData.linkedin || '-'}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">GitHub:</span>
-                <span className="value">{profileData.github || '-'}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Portfolio:</span>
-                <span className="value">{profileData.portfolio || '-'}</span>
-              </div>
+              {!isEditing && (
+                <button type="button" className="workspace-button workspace-button-secondary" onClick={() => setIsEditing(true)}>
+                  Edit details
+                </button>
+              )}
             </div>
-          )}
-        </div>
+
+            {isEditing ? (
+              <form className="profile-form" onSubmit={handleSave}>
+                <div className="profile-field">
+                  <label htmlFor="profile-name">Full name</label>
+                  <input
+                    id="profile-name"
+                    name="name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    autoComplete="name"
+                    minLength={2}
+                    maxLength={80}
+                    required
+                  />
+                </div>
+                <div className="profile-field">
+                  <label htmlFor="profile-email">Email address</label>
+                  <input id="profile-email" value={profile.email} disabled readOnly />
+                  <small>Your email address is used to sign in and cannot be changed here.</small>
+                </div>
+                <div className="workspace-form-actions">
+                  <button type="submit" className="workspace-button workspace-button-primary" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save changes'}
+                  </button>
+                  <button type="button" className="workspace-button workspace-button-secondary" onClick={cancelEditing} disabled={isSaving}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <dl className="profile-information">
+                <div>
+                  <dt>Full name</dt>
+                  <dd>{profile.name}</dd>
+                </div>
+                <div>
+                  <dt>Email address</dt>
+                  <dd>{profile.email}</dd>
+                </div>
+              </dl>
+            )}
+
+            <div className="profile-note">
+              Resume contact details are managed separately in each resume.
+              <Link to="/resumes"> View your resumes</Link>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

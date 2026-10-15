@@ -52,6 +52,7 @@ function ATSReport() {
     const sections = [
       'ATS VALIDATION REPORT',
       `Resume: ${report.resumeName}`,
+      ...(report.jobPostingUrl ? [`Job posting: ${report.jobPostingUrl}`] : []),
       `Date: ${report.date}`,
       `Score: ${report.score}/100 (${report.status})`,
       '',
@@ -91,6 +92,12 @@ function ATSReport() {
               <span className="label">Date:</span>
               <span className="value">{report.date}</span>
             </div>
+            {report.jobPostingUrl && (
+              <div className="meta-item">
+                <span className="label">Job posting:</span>
+                <a className="value" href={report.jobPostingUrl} target="_blank" rel="noreferrer">View listing</a>
+              </div>
+            )}
           </div>
         </div>
 

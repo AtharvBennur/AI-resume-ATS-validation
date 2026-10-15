@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { issueToken } = require('../controllers/authController');
+const { issueToken, updateMe } = require('../controllers/authController');
 const { rewriteSection } = require('../controllers/aiController');
 
 process.env.JWT_SECRET = 'test-secret';
@@ -17,7 +17,11 @@ test('issued JWTs do not expire', () => {
 test('GET /api/health returns service status', async () => {
   const response = await request(app).get('/api/health');
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body, { status: 'ok', service: 'fsd-resume-backend' });
+  assert.deepEqual(response.body, {
+    status: 'ok',
+    service: 'fsd-resume-backend',
+    database: 'disconnected'
+  });
 });
 
 test('registration validates required fields before database access', async () => {
@@ -29,6 +33,12 @@ test('registration validates required fields before database access', async () =
 
 test('protected endpoint rejects missing credentials', async () => {
   const response = await request(app).get('/api/auth/me');
+  assert.equal(response.status, 401);
+  assert.equal(response.body.error, 'Authentication token required');
+});
+
+test('profile update endpoint rejects missing credentials', async () => {
+  const response = await request(app).patch('/api/auth/me').send({ name: 'Updated Name' });
   assert.equal(response.status, 401);
   assert.equal(response.body.error, 'Authentication token required');
 });
@@ -98,6 +108,32 @@ function createMockResponse() {
     }
   };
 }
+
+test('profile update validates the name before saving', async () => {
+  let saved = false;
+  const response = createMockResponse();
+  await updateMe({
+    body: { name: ' A ' },
+    user: { save: async () => { saved = true; } }
+  }, response);
+  assert.equal(response.statusCode, 400);
+  assert.equal(saved, false);
+  assert.equal(response.body.error, 'Validation failed');
+});
+
+test('profile update saves and returns the authenticated user name', async () => {
+  const user = {
+    _id: { toString: () => 'test-user' },
+    name: 'Old Name',
+    email: 'test@example.com',
+    save: async function save() {}
+  };
+  const response = createMockResponse();
+  await updateMe({ body: { name: '  New Name  ' }, user }, response);
+  assert.deepEqual(response.body, {
+    user: { id: 'test-user', name: 'New Name', email: 'test@example.com' }
+  });
+});
 
 test('AI rewrite validates that section text is supplied', async () => {
   const response = createMockResponse();

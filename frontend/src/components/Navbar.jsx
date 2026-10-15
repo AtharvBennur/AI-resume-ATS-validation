@@ -5,12 +5,10 @@ import '../styles/Navbar.css';
 const workspaceLinks = [
   { label: 'Dashboard', path: '/dashboard' },
   { label: 'Create Resume', path: '/resume/create' },
-  { label: 'Update Resume', path: '/resume/update' },
   { label: 'Enhance Resume', path: '/resume/enhance' },
   { label: 'ATS Validation', path: '/ats' },
   { label: 'My Resumes', path: '/resumes' },
-  { label: 'Profile', path: '/profile' },
-  { label: 'Settings', path: '/settings' }
+  { label: 'Profile', path: '/profile' }
 ];
 
 function Navbar({ isAuthenticated, onLogout }) {
@@ -46,8 +44,8 @@ function Navbar({ isAuthenticated, onLogout }) {
   return (
     <nav className={`navbar${isAuthenticated ? ' navbar-authenticated' : ''}`}>
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo" aria-label="AI Resume Maker home">
-          <span className="logo-icon" aria-hidden="true">R</span>
+        <Link to={isAuthenticated ? '/dashboard' : '/'} className="navbar-logo" aria-label={isAuthenticated ? 'Go to your dashboard' : 'AI Resume Maker home'}>
+          <img className="navbar-logo-image" src="/resume-mark.svg" alt="" />
           <span className="navbar-brand-copy">
             <span>AI Resume Maker</span>
             {isAuthenticated && <small>CAREER STUDIO</small>}

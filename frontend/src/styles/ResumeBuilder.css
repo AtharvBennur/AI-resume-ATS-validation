@@ -63,13 +63,21 @@
 
 /* FORM SECTION */
 .builder-form {
+  display: flex;
+  flex-direction: column;
   background-color: var(--white);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   padding: 2rem;
   box-shadow: var(--shadow-sm);
-  overflow-y: auto;
+  overflow: hidden;
   max-height: calc(100vh - 250px);
+}
+
+.builder-form-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .form-section {
@@ -360,8 +368,9 @@
   }
 
   .builder-form {
-    max-height: none;
+    max-height: calc(100dvh - 180px);
   }
+
 }
 
 @media (max-width: 768px) {
@@ -418,5 +427,38 @@
   .achievement-entry .btn-icon {
     grid-column: 2;
     grid-row: 1 / span 2;
+  }
+}
+.live-ats-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #dbe5ef;
+  border-radius: 10px;
+  background: linear-gradient(110deg, #f7fafc, #eef5f5);
+  color: #1d514b;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.live-ats-score strong {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.live-ats-score small {
+  margin-left: 0.15rem;
+  color: #75868c;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+@media (max-width: 560px) {
+  .live-ats-score {
+    padding: 0.65rem 0.85rem;
   }
 }

@@ -9,13 +9,11 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import CreateResume from './pages/CreateResume'
-import UpdateResume from './pages/UpdateResume'
 import EnhanceResume from './pages/EnhanceResume'
 import ATSValidation from './pages/ATSValidation'
 import ATSReport from './pages/ATSReport'
 import Resumes from './pages/Resumes'
 import Profile from './pages/Profile'
-import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 
 import './App.css'
@@ -37,22 +35,20 @@ function App() {
         <main className="page-shell">
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
             <Route path="/login" element={<Login onLogin={() => setIsAuthenticated(true)} />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/register" element={<Register onLogin={() => setIsAuthenticated(true)} />} />
 
             {/* Protected Routes */}
             <Route path="/dashboard" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Dashboard /></ProtectedRoute>} />
             <Route path="/resume/create" element={<ProtectedRoute isAuthenticated={isAuthenticated}><CreateResume /></ProtectedRoute>} />
             <Route path="/resume/:id/edit" element={<ProtectedRoute isAuthenticated={isAuthenticated}><CreateResume /></ProtectedRoute>} />
             <Route path="/resume/:id/preview" element={<ProtectedRoute isAuthenticated={isAuthenticated}><CreateResume /></ProtectedRoute>} />
-            <Route path="/resume/update" element={<ProtectedRoute isAuthenticated={isAuthenticated}><UpdateResume /></ProtectedRoute>} />
             <Route path="/resume/enhance" element={<ProtectedRoute isAuthenticated={isAuthenticated}><EnhanceResume /></ProtectedRoute>} />
             <Route path="/ats" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ATSValidation /></ProtectedRoute>} />
             <Route path="/ats/:id" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ATSReport /></ProtectedRoute>} />
             <Route path="/resumes" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Resumes /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Profile /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Settings /></ProtectedRoute>} />
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />

@@ -24,7 +24,7 @@ export const createResumePdf = async (resumeData) => {
   };
 
   const write = (value, options = {}) => {
-    const { bold = false, size = 9, indent = 0, gap = 1.2 } = options;
+    const { bold = false, size = 9, indent = 0, gap = 1.2, align = 'left' } = options;
     const valueText = text(value);
     if (!valueText) return;
     pdf.setFont('helvetica', bold ? 'bold' : 'normal');
@@ -32,7 +32,7 @@ export const createResumePdf = async (resumeData) => {
     const lines = pdf.splitTextToSize(valueText, pageWidth - LEFT * 2 - indent);
     const lineHeight = size * 0.43;
     ensureSpace(lines.length * lineHeight + gap);
-    pdf.text(lines, LEFT + indent, y);
+    pdf.text(lines, align === 'center' ? pageWidth / 2 : LEFT + indent, y, { align });
     y += lines.length * lineHeight + gap;
   };
 
@@ -51,9 +51,9 @@ export const createResumePdf = async (resumeData) => {
   };
 
   const person = resumeData.personalInfo || {};
-  write(person.fullName || 'Your Name', { bold: true, size: 18, gap: 1 });
+  write(person.fullName || 'Your Name', { bold: true, size: 18, gap: 1, align: 'center' });
   write([person.professionalTitle, person.email, person.phone, person.location, person.linkedin, person.github, person.portfolio]
-    .map(text).filter(Boolean).join(' | '), { size: 9, gap: 4 });
+    .map(text).filter(Boolean).join(' | '), { size: 9, gap: 4, align: 'center' });
 
   if (text(resumeData.professionalSummary)) {
     section('Professional Summary');

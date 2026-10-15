@@ -69,4 +69,18 @@ async function me(req, res) {
   return res.json({ user: publicUser(req.user) });
 }
 
-module.exports = { register, login, me, issueToken };
+async function updateMe(req, res) {
+  const { name } = req.body || {};
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: { name: 'Name must be between 2 and 80 characters' }
+    });
+  }
+
+  req.user.name = name.trim();
+  await req.user.save();
+  return res.json({ user: publicUser(req.user) });
+}
+
+module.exports = { register, login, me, updateMe, issueToken };

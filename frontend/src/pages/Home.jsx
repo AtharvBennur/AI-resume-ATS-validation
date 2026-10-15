@@ -1,19 +1,22 @@
 import { Link } from 'react-router-dom';
 import '../styles/pages.css';
 
-function Home() {
+function Home({ isAuthenticated = false }) {
   return (
     <div className="home-page">
       <section className="hero-section">
         <div className="hero-content">
+          <img className="home-brand-mark" src="/resume-mark.svg" alt="AI Resume Maker logo" />
           <span className="hero-kicker">AI RESUME STUDIO · ATS-READY BY DESIGN</span>
           <h1>A sharper story.<br /><em>One clear format.</em></h1>
           <p>Build a focused, recruiter-readable resume with thoughtful AI assistance, secure saving, and a reliable PDF export.</p>
           <div className="hero-buttons">
-            <Link to="/resume/create" className="btn btn-primary btn-large">
-              Build your resume <span aria-hidden="true">↗</span>
+            <Link to={isAuthenticated ? '/dashboard' : '/login'} className="btn btn-primary btn-large">
+              {isAuthenticated ? 'Go to your workspace' : 'Sign in to your workspace'} <span aria-hidden="true">↗</span>
             </Link>
-            <Link to="/login" className="hero-text-link">Sign in to your workspace</Link>
+            <Link to={isAuthenticated ? '/resume/create' : '/register'} className="hero-text-link">
+              {isAuthenticated ? 'Build a resume' : 'Create an account'}
+            </Link>
           </div>
         </div>
         <div className="hero-visual" aria-label="Preview of the resume format">
@@ -71,7 +74,7 @@ function Home() {
             <div><span>02</span><strong>AI that stays grounded</strong><p>Generate a concise summary from the information you provide, without invented credentials or results.</p></div>
             <div><span>03</span><strong>Your work, ready to share</strong><p>Save to your MongoDB-backed account and download a clean, text-based PDF.</p></div>
           </div>
-          <Link to="/resume/create" className="format-cta">Start building <span aria-hidden="true">↗</span></Link>
+          <Link to={isAuthenticated ? '/resume/create' : '/register'} className="format-cta">{isAuthenticated ? 'Start building' : 'Create your account'} <span aria-hidden="true">↗</span></Link>
         </div>
       </section>
     </div>

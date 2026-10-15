@@ -2,7 +2,7 @@
 
 AI Resume Maker is a full-stack resume-building application with a React frontend and an Express API. It brings resume editing, ATS-oriented review screens, and account access together in one interface.
 
-> **Project status:** Accounts, resumes, parsed PDF/DOCX imports, AI-assisted resume text rewriting, deterministic ATS reports, and job-keyword comparison use the Express API. MongoDB stores accounts, resumes, and report history. Profile editing remains a demo feature.
+> **Project status:** Accounts, profile names, resumes, parsed PDF/DOCX imports, AI-assisted resume text rewriting, deterministic ATS reports, and job-keyword comparison use the Express API. MongoDB stores accounts, resumes, and report history. Notification preferences are stored in the browser; email delivery is not configured.
 
 ## Features
 
@@ -10,9 +10,9 @@ AI Resume Maker is a full-stack resume-building application with a React fronten
 - Export resumes as a clean PDF using the single ATS-friendly section order shown in the builder.
 - Rewrite user-entered resume text into professional, factual wording through Groq.
 - Import text-based PDF/DOCX resumes into a new resume or replace an existing saved resume.
-- Check uploaded text-based PDF and DOCX resumes with deterministic backend ATS rules, with optional job-description keyword matching and saved report history.
+- Check uploaded text-based PDF and DOCX resumes against a public HTTPS job-posting URL with deterministic ATS rules and saved report history.
 - Compare a saved resume's actual terms with a pasted job description; the displayed percentage is keyword overlap, not a vendor ATS score.
-- Browse resume, dashboard, profile, and settings screens.
+- Browse resume, dashboard, and profile screens.
 - Explore an ATS review flow for PDF and DOCX files, plus job-focused resume enhancement screens.
 - Register and log in with a MongoDB-backed account, password hashing, and JWT authentication.
 - Access authenticated application routes after signing in.
@@ -44,10 +44,10 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 For MongoDB Community Server running on this laptop with its default port, the `backend/.env` connection string is:
 
 ```dotenv
-MONGODB_URI=mongodb://127.0.0.1:27017/fsd_resume
+MONGODB_URI=mongodb://127.0.0.1:27017/ai_resume_workspace
 ```
 
-`fsd_resume` is the database name; MongoDB creates it when the app first writes a record. The project `.env.example` already contains this local placeholder, and `.env` is ignored by Git. If you use a different host, port, or authentication, replace the URI in `backend/.env` with the connection string for that MongoDB server. In MongoDB Compass, you can connect with the same URI; Compass is a database client, so MongoDB Community Server must be installed and running separately. On Windows, start the MongoDB Server service from the Services app (or run `Start-Service MongoDB` in an elevated PowerShell window if it was installed as a service).
+`ai_resume_workspace` is the database name. Startup initializes the `users`, `resumes`, and `atsreports` collections so the database is visible in Compass before the first account is registered. The project `.env.example` contains this local placeholder, and `.env` is ignored by Git. In Compass, select **Add new connection**, use `mongodb://127.0.0.1:27017`, connect, then refresh the database list and expand `ai_resume_workspace`. If you use a different host, port, or authentication, use that MongoDB server's connection string in both Compass and `backend/.env`. On Windows, start the MongoDB Server service from the Services app (or run `Start-Service MongoDB` in an elevated PowerShell window if it was installed as a service).
 
 Keep `JWT_SECRET` set to a long, private random value. To enable AI rewriting, create a Groq API key at [console.groq.com/keys](https://console.groq.com/keys), then set `GROQ_API_KEY` in `backend/.env`. Set `GROQ_MODEL` to an available model ID shown in your Groq Console; `GROQ_API_URL` is already set to Groq's OpenAI-compatible endpoint. Groq's free usage has account and rate limits. Keep the key in the backend only, do not commit `.env`, and review Groq's data terms before sending real resume text to its hosted service.
 
@@ -75,7 +75,7 @@ Open the Vite URL printed in the terminal (usually `http://localhost:5173`). The
 VITE_API_URL=http://localhost:5000/api
 ```
 
-Registered accounts store resumes in MongoDB. The frontend also includes a local demo login: `demo@airesume.local` / `Demo@1234`; its sample resumes remain browser-only and are not database records.
+Use **Register** to create a MongoDB-backed account; successful registration signs you in and opens the dashboard. The login and registration pages show whether the backend and MongoDB are connected. To verify persistence, log out and sign in again with the account you created.
 
 ## API
 
@@ -83,25 +83,28 @@ All implemented routes are prefixed with `/api`:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/health` | Check API health |
+| `GET` | `/health` | Check API health and MongoDB connection status |
 | `POST` | `/auth/register` | Create an account and return a JWT |
 | `POST` | `/auth/login` | Authenticate and return a JWT |
 | `GET` | `/auth/me` | Return the current authenticated user |
+| `PATCH` | `/auth/me` | Update the authenticated user's name |
 | `GET`, `POST` | `/resumes` | List or create the authenticated user's resumes |
 | `GET`, `PUT`, `DELETE` | `/resumes/:id` | Read, update, or delete an owned resume |
 | `POST` | `/ai/rewrite` | Professionally rewrite user-entered resume text (authenticated; requires Groq configuration) |
 | `POST` | `/ai/resume/import` | Parse a text-based PDF/DOCX into resume sections (authenticated; 5 MB file limit) |
-| `POST` | `/ai/ats/validate` | Calculate and save a deterministic ATS report; optionally update a selected resume score (authenticated; optional job description; 5 MB file limit) |
+| `POST` | `/ai/ats/validate` | Fetch and score a public HTTPS job posting against an uploaded resume; optionally update a selected resume score (authenticated; 5 MB file limit) |
 | `GET` | `/ai/ats/reports/:id` | Read a saved ATS report owned by the authenticated user |
 | `POST` | `/ai/job-match` | Compare saved resume keywords with a job description (authenticated) |
 
 Registration expects a name, valid email, and password of at least eight characters. The `/auth/me` endpoint requires an authentication token.
 
+ATS validation accepts a public HTTPS job listing URL and an uploaded PDF/DOCX. Private network addresses, non-HTTPS URLs, redirects to non-public hosts, and pages that cannot be read are rejected.
+
 ## Application Routes
 
 Public routes: `/`, `/login`, and `/register`.
 
-Authenticated routes include `/dashboard`, `/resume/create`, `/resume/:id/edit`, `/resume/:id/preview`, `/resume/update`, `/resume/enhance`, `/ats`, `/ats/:id`, `/resumes`, `/profile`, and `/settings`.
+Authenticated routes include `/dashboard`, `/resume/create`, `/resume/:id/edit`, `/resume/:id/preview`, `/resume/enhance`, `/ats`, `/ats/:id`, `/resumes`, and `/profile`.
 
 ## Tests and Quality Checks
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { DEMO_CREDENTIALS, loginUser } from '../services/api';
+import { loginUser } from '../services/api';
+import DatabaseStatus from '../components/DatabaseStatus';
 import '../styles/pages.css';
 
 function Login({ onLogin }) {
@@ -9,11 +10,6 @@ function Login({ onLogin }) {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const useDemoCredentials = () => {
-    setFormData(DEMO_CREDENTIALS);
-    setError('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,16 +37,9 @@ function Login({ onLogin }) {
           <h2>Login to Your Account</h2>
           <p className="auth-subtitle">Welcome back! Please login with your details.</p>
 
-          {error && <div className="error-message" role="alert">{error}</div>}
+          <DatabaseStatus />
 
-          <div className="demo-credentials">
-            <span className="demo-label">Demo account</span>
-            <small>Email: {DEMO_CREDENTIALS.email}</small>
-            <small>Password: {DEMO_CREDENTIALS.password}</small>
-            <button type="button" className="link demo-fill-button" onClick={useDemoCredentials}>
-              Use demo credentials
-            </button>
-          </div>
+          {error && <div className="error-message" role="alert">{error}</div>}
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">

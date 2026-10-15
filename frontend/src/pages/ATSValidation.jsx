@@ -7,7 +7,7 @@ function ATSValidation() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [jobDescription, setJobDescription] = useState('');
+  const [jobPostingUrl, setJobPostingUrl] = useState('');
   const [resumeId, setResumeId] = useState('');
   const [resumes, setResumes] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -63,10 +63,14 @@ function ATSValidation() {
 
   const handleAnalyze = async () => {
     if (!uploadedFile) return;
+    if (!jobPostingUrl.trim()) {
+      setActionError('Enter the job posting URL to analyze this resume.');
+      return;
+    }
     setIsLoading(true);
     setActionError('');
     try {
-      const response = await validateATS(uploadedFile, jobDescription, resumeId);
+      const response = await validateATS(uploadedFile, jobPostingUrl, resumeId);
       if (response.success) {
         setReport(response.report);
         setStep(3);
@@ -83,7 +87,7 @@ function ATSValidation() {
       <div className="container">
         <div className="ats-header">
           <h1>Check Your Resume ATS Score</h1>
-          <p>Scores are calculated from extracted text, resume sections, contact details, and optional job keywords.</p>
+          <p>Upload your resume and share the job listing URL to see how well they align.</p>
         </div>
         {actionError && <p className="builder-error" role="alert">{actionError}</p>}
 
@@ -123,14 +127,17 @@ function ATSValidation() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="job-description">Job description (optional)</label>
-              <textarea
-                id="job-description"
-                value={jobDescription}
-                onChange={(event) => setJobDescription(event.target.value)}
-                placeholder="Paste a job description to check matching keywords"
-                rows="5"
+              <label htmlFor="job-posting-url">Job posting URL <span aria-hidden="true">*</span></label>
+              <input
+                id="job-posting-url"
+                type="url"
+                value={jobPostingUrl}
+                onChange={(event) => setJobPostingUrl(event.target.value)}
+                placeholder="https://company.com/careers/job-title"
+                autoComplete="url"
+                required
               />
+              <p className="field-hint">Use a public HTTPS job listing that does not require signing in.</p>
             </div>
 
             <div className="form-group">
@@ -155,7 +162,7 @@ function ATSValidation() {
               </div>
             </div>
 
-            <button onClick={handleAnalyze} className="btn btn-primary btn-large" disabled={isLoading}>
+            <button onClick={handleAnalyze} className="btn btn-primary btn-large" disabled={isLoading || !jobPostingUrl.trim()}>
               {isLoading ? 'Analyzing...' : 'Analyze Resume'}
             </button>
           </div>
@@ -169,6 +176,11 @@ function ATSValidation() {
                 <div className="score-max">/ 100</div>
               </div>
               <div className="score-status">{report.status}</div>
+              {report.jobPostingUrl && (
+                <a className="field-hint" href={report.jobPostingUrl} target="_blank" rel="noreferrer">
+                  Job posting analyzed
+                </a>
+              )}
             </div>
 
             <div className="score-breakdown">

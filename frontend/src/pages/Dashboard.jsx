@@ -3,16 +3,6 @@ import { Link } from 'react-router-dom';
 import { getResumes } from '../services/api';
 import '../styles/pages.css';
 
-const completionFields = (data = {}) => [
-  Boolean(data.personalInfo?.fullName),
-  Boolean(data.personalInfo?.professionalTitle),
-  Boolean(data.personalInfo?.email),
-  Boolean(data.professionalSummary?.trim()),
-  Boolean(data.skills?.length),
-  Boolean(data.experience?.length),
-  Boolean(data.education?.length)
-];
-
 const formatDate = (value) => {
   if (!value) return 'Not updated yet';
   const date = new Date(value);
@@ -45,9 +35,6 @@ function Dashboard() {
     ? Math.round(scoredResumes.reduce((sum, resume) => sum + Number(resume.atsScore), 0) / scoredResumes.length)
     : null;
   const latestResume = resumes[0];
-  const completion = latestResume
-    ? Math.round(completionFields(latestResume.data).filter(Boolean).length / completionFields(latestResume.data).length * 100)
-    : 0;
   const firstName = localStorage.getItem('userName')?.trim().split(/\s+/)[0] || 'there';
 
   return (
@@ -63,30 +50,6 @@ function Dashboard() {
               <Link to="/ats" className="dashboard-secondary-link">Check ATS fit</Link>
             </div>
           </div>
-          <aside className="dashboard-focus">
-            <div className="dashboard-focus-top">
-              <span>WORKSPACE SNAPSHOT</span>
-              <span className="dashboard-focus-mark" aria-hidden="true">R</span>
-            </div>
-            {isLoading ? (
-              <p>Loading your resume library…</p>
-            ) : loadError ? (
-              <p>Resume data is temporarily unavailable.</p>
-            ) : resumes.length ? (
-              <>
-                <strong>{resumes.length}</strong>
-                <p>{resumes.length === 1 ? 'resume in your library' : 'resumes in your library'}</p>
-                <div className="dashboard-focus-rule"><span style={{ width: `${completion}%` }} /></div>
-                <small>{completion}% complete · latest resume</small>
-              </>
-            ) : (
-              <>
-                <strong>01</strong>
-                <p>Start with one clear, complete resume.</p>
-                <Link to="/resume/create">Build your first resume <span aria-hidden="true">→</span></Link>
-              </>
-            )}
-          </aside>
         </header>
 
         <section className="dashboard-metrics" aria-label="Resume overview">
@@ -104,11 +67,6 @@ function Dashboard() {
             <span>LATEST UPDATE</span>
             <strong className="dashboard-metric-date">{isLoading ? '—' : formatDate(latestResume?.lastUpdated)}</strong>
             <small>{latestResume?.name || 'Your first resume is one step away'}</small>
-          </div>
-          <div className="dashboard-metric dashboard-metric-completion">
-            <span>PROFILE COVERAGE</span>
-            <strong>{isLoading || !latestResume ? '—' : `${completion}%`}</strong>
-            <small>{latestResume ? 'Latest resume fields completed' : 'Add details to track completion'}</small>
           </div>
         </section>
 
@@ -164,11 +122,6 @@ function Dashboard() {
             <Link to="/ats" className="dashboard-tool-link">
               <span className="dashboard-tool-number">02</span>
               <span><strong>Check ATS fit</strong><small>Review structure and keywords</small></span>
-              <span className="dashboard-tool-arrow" aria-hidden="true">↗</span>
-            </Link>
-            <Link to="/resume/update" className="dashboard-tool-link">
-              <span className="dashboard-tool-number">03</span>
-              <span><strong>Import a resume</strong><small>Continue from an existing file</small></span>
               <span className="dashboard-tool-arrow" aria-hidden="true">↗</span>
             </Link>
           </aside>

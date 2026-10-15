@@ -4,6 +4,7 @@ const { PDFParse } = require('pdf-parse');
 const ATSReport = require('../models/ATSReport');
 const Resume = require('../models/Resume');
 const { scoreResumeText } = require('../utils/atsScorer');
+const jobPosting = require('../utils/jobPosting');
 
 function collectResumeText(value) {
   if (typeof value === 'string' || typeof value === 'number') return [String(value)];
@@ -29,6 +30,9 @@ async function extractText(file) {
 
 async function validateATS(req, res, next) {
   if (!req.file) return res.status(400).json({ error: 'Upload a PDF or DOCX resume' });
+  if (typeof req.body.jobPostingUrl !== 'string' || !req.body.jobPostingUrl.trim()) {
+    return res.status(400).json({ error: 'Enter a job posting URL' });
+  }
 
   try {
     let resume = null;
@@ -46,7 +50,8 @@ async function validateATS(req, res, next) {
       error.message = 'Could not read this document. Use a valid, text-based PDF or DOCX file.';
       return next(error);
     }
-    const result = scoreResumeText(text, req.body.jobDescription);
+    const posting = await jobPosting.fetchJobPostingText(req.body.jobPostingUrl.trim());
+    const result = scoreResumeText(text, posting.text);
     if (result.critical.some((item) => item.includes('Very little readable resume text'))) {
       return res.status(422).json({ error: 'Too little selectable text was found to score this resume. Scanned image-only files need OCR.' });
     }
@@ -55,6 +60,7 @@ async function validateATS(req, res, next) {
       user: req.user._id,
       resume: resume?._id || null,
       resumeName: resume?.name || req.file.originalname,
+      jobPostingUrl: posting.url,
       ...result
     });
     if (resume) {
@@ -68,6 +74,7 @@ async function validateATS(req, res, next) {
         id: report._id.toString(),
         resumeId: resume?._id.toString() || null,
         resumeName: report.resumeName,
+        jobPostingUrl: report.jobPostingUrl,
         date: report.createdAt.toISOString().slice(0, 10),
         score: report.score,
         status: report.status,
@@ -94,6 +101,7 @@ async function getATSReport(req, res, next) {
         id: report._id.toString(),
         resumeId: report.resume?.toString() || null,
         resumeName: report.resumeName,
+        jobPostingUrl: report.jobPostingUrl,
         date: report.createdAt.toISOString().slice(0, 10),
         score: report.score,
         status: report.status,
